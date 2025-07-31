@@ -1,0 +1,17 @@
+ID	Expression	Description	Result (Decimal)	Result (Hex)	Result (Binary)
+1	5 + 3	Basic addition	8	0x08	0b00001000
+2	0xA + 0b11	Hex + Binary	13	0x0D	0b00001101
+3	12 - 7	Basic subtraction	5	0x05	0b00000101
+4	0xF - 0xA	Hex subtraction	5	0x05	0b00000101
+5	4 * 6	Multiplication	24	0x18	0b00011000
+6	0b101 * 0b10	Binary multiplication	10	0x0A	0b00001010
+7	20 / 4	Integer division	5	0x05	0b00000101
+8	0x10 / 0b100	Hex / Binary	4	0x04	0b00000100
+9	10 % 3	Modulo operation	1	0x01	0b00000001
+10	~0x0F	Bitwise NOT	-16	0xFFFFFFF0	(32-bit)
+11	0x0F & 0xF0	Bitwise AND	0	0x00	0b00000000
+12	0x0F | 0xF0	Bitwise OR	255	0xFF	0b11111111
+13	0x0F ^ 0xF0	Bitwise XOR	255	0xFF	0b11111111
+14	1 << 4	Left shift	16	0x10	0b00010000
+15	0x10 >> 2	Right shift	4	0x04	0b00000100
+16	1 && 0	Logical AND	0	0x00	0b00000000
