@@ -6,15 +6,20 @@ The primary goal is to allow using C like math and logic expressions at parity w
 Unlike PCalc which is Windows Only, leveraging Flutter this app will run on Windows, Linux, Mac, Android and iOS.
 Eventually I might add additional features.  Right now it is mostly a fun project to play with Flutter and C++ interop.
 
-Features missing from PCalc:
- - binary literals
- - todo list the rest
+
 
 ## Math Expression Parser
 
 This application is currently using https://github.com/Blake-Madden/tinyexpr-plusplus for the primary mathematical expression parser and evaluator.
 
 Other backends or implementations are currently being investigated.
+
+## Features missing when compared to AnalogX PCalc
+ - type casting
+ - no bitshifting floats
+ - binary literals
+ - char literals
+ - will list more when i have a test suite
 
 ## Flutter Native Assets
 
