@@ -6,6 +6,7 @@
  * with Dart FFI or other C-compatible environments.
  */
 
+#include "tinyexprpp_wrapper.h"
 #include "tinyexpr.h"
 #include <cstring>
 #include <cmath>
