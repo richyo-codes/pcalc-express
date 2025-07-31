@@ -9,7 +9,8 @@ on:
   pull_request:
     branches: [ main, publish ]
 
-
+env:
+  FLUTTER_CHANNEL: 'beta'
 
 jobs:
   
@@ -20,15 +21,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            ~/.fvm
-            ~/.cache/flutter
-          key: flutter-linux-${{ hashFiles('.fvmrc') }}-${{ hashFiles('pubspec.yaml') }}
-
       - name: Install Ubuntu dependencies
         run: |
           sudo apt-get update -y && sudo apt-get upgrade -y
@@ -38,11 +30,14 @@ jobs:
       - uses: kuhnroyal/flutter-fvm-config-action/config@v3
         with:
           path: '.fvmrc'
-          channel: beta
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ steps.fvm-config-action.outputs.FLUTTER_VERSION }}
-          
+          channel: beta
+
+      - name: Version
+        run: flutter doctor
+
       - name: Install Flutter dependencies
         run: flutter pub get
 
