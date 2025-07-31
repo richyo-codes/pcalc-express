@@ -1,0 +1,59 @@
+# GitHub Actions workflow for building Flutter app for Linux using FVM
+# This workflow uses the version specified in .fvm/fvm_config.json or .fvmrc
+
+name: Build Flutter Linux App
+
+on:
+  push:
+    branches: [ main, publish ]
+  pull_request:
+    branches: [ main, publish ]
+
+
+
+jobs:
+  
+  build-linux:
+    
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.fvm
+            ~/.cache/flutter
+          key: flutter-linux-${{ hashFiles('.fvmrc') }}-${{ hashFiles('pubspec.yaml') }}
+
+      - name: Install Ubuntu dependencies
+        run: |
+          sudo apt-get update -y && sudo apt-get upgrade -y
+          sudo apt-get install -y curl git unzip xz-utils zip libglu1-mesa
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld
+
+      - uses: kuhnroyal/flutter-fvm-config-action/config@v3
+        with:
+          path: '.fvmrc'
+          channel: beta
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config-action.outputs.FLUTTER_VERSION }}
+          
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Build for Linux
+        run: flutter build linux --release
+
+      # - name: Upload Linux build artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: linux-build
+      #     path: build/linux/x64/release/bundle/
