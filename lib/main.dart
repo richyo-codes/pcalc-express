@@ -195,13 +195,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   void initState() {
     super.initState();
-    _focusNode.requestFocus(); // Set focus to the TextField by default
+    
     // Determine if calculator buttons should be shown
     if (Platform.isAndroid) {
       showCalcButtons = true;
     } else {
       showCalcButtons = widget.showCalcButtonsDesktop ?? false;
     }
+
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();// Set focus to the TextField by default
+    });
   }
 
   @override
@@ -499,58 +503,67 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: "Enter Expression",
+            Expanded(
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 56, // Give the row a fixed height
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: "Enter Expression",
+                            ),
+                            style: TextStyle(fontSize: 20),
+                            readOnly: Platform.isAndroid, // Disable keyboard on Android
+                            showCursor: true,
+                            enableInteractiveSelection: true,
+                            onTap: () {
+                              if (Platform.isAndroid) {
+                                // Keep focus so user can use app keypad
+                                _focusNode.requestFocus();
+                              }
+                            },
+                            onSubmitted: (_) => _calculateResult(),
+                          ),
+                        ),
+                        inlineCalcButton, // Small "C" button to the right
+                      ],
                     ),
-                    style: TextStyle(fontSize: 20),
-                    readOnly: Platform.isAndroid, // Disable keyboard on Android
-                    showCursor: true,
-                    enableInteractiveSelection: true,
-                    onTap: () {
-                      if (Platform.isAndroid) {
-                        // Keep focus so user can use app keypad
-                        _focusNode.requestFocus();
-                      }
-                    },
-                    onSubmitted: (_) => _calculateResult(),
                   ),
-                ),
-                inlineCalcButton, // Small "C" button to the right
-              ],
-            ),
-            SizedBox(height: 16),
-            buildResultField("Decimal", decimalResult),
-            buildResultField("Hexadecimal", hexResult),
-            buildResultField("Binary", binaryResult),
-            buildResultField("Floating Point", floatResult),
-            SizedBox(height: 10),
-            if (showCalcButtons) ...[buildCalcButtons(), SizedBox(height: 10)],
-    // Remove separate C button, = is now in main grid
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  showHistory = !showHistory;
-                });
-              },
-              child: Text(showHistory ? "Hide History" : "Show History"),
-            ),
-            if (showHistory)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: history.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(title: Text(history[index]));
-                  },
-                ),
+                  SizedBox(height: 16),
+                  buildResultField("Decimal", decimalResult),
+                  buildResultField("Hexadecimal", hexResult),
+                  buildResultField("Binary", binaryResult),
+                  buildResultField("Floating Point", floatResult),
+                  SizedBox(height: 10),
+                  if (showCalcButtons) ...[buildCalcButtons(), SizedBox(height: 10)],
+                  // Remove separate C button, = is now in main grid
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        showHistory = !showHistory;
+                      });
+                    },
+                    child: Text(showHistory ? "Hide History" : "Show History"),
+                  ),
+                  if (showHistory)
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: history.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(title: Text(history[index]));
+                        },
+                      ),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),
