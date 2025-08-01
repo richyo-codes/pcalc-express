@@ -50,7 +50,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - run: |
-        echo "y" | sdkmanager "ndk;26.2.11394342" # Replace with your required NDK version
+          echo "y" | sdkmanager "ndk;26.2.11394342" # Replace with your required NDK version
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
 
