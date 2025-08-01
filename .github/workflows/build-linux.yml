@@ -41,6 +41,23 @@ jobs:
         run: |
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - run: |
+        echo "y" | sdkmanager "ndk;26.2.11394342" # Replace with your required NDK version
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: 'r26d' # Specify the NDK version your project requires
+          link-to-sdk: true # Link the NDK to the Android SDK
 
       - uses: kuhnroyal/flutter-fvm-config-action/config@v3
         with:
@@ -75,15 +92,7 @@ jobs:
           name: linux-build
           path: build/linux/x64/release/bundle/
 
-      - run: |
-          echo "y" | sdkmanager "ndk;26.2.11394342" # Replace with your required NDK version
-        env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
 
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: 'r26d' # Specify the NDK version your project requires
-          link-to-sdk: true # Link the NDK to the Android SDK
 
       - name: Build for Android
         run: flutter build apk --release
