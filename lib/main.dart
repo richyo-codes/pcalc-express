@@ -9,6 +9,7 @@ import 'package:ffi/ffi.dart' as ffi;
 import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:rnd_pcalc_ng/format_helper.dart';
 
 void main() async {
   // Set window size for Linux desktop
@@ -195,7 +196,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Determine if calculator buttons should be shown
     if (Platform.isAndroid) {
       showCalcButtons = true;
@@ -203,8 +204,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       showCalcButtons = widget.showCalcButtonsDesktop ?? false;
     }
 
-     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();// Set focus to the TextField by default
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus(); // Set focus to the TextField by default
     });
   }
 
@@ -213,6 +214,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _controller.dispose();
     _focusNode.dispose(); // Dispose of the focus node
     super.dispose();
+  }
+
+  void _clearResult() {
+    _controller.clear();
+
+    _focusNode.requestFocus();
   }
 
   void _calculateResult() {
@@ -226,27 +233,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double floatValue = result.toDouble();
 
       if (!result.isNaN) {
-          setState(() {
-            decimalResult = intValue.toString();
-            hexResult = intValue.toRadixString(16).toUpperCase();
-            binaryResult = intValue.toRadixString(2);
-            floatResult = floatValue.toString();
-            history.add(
-              "$input = $decimalResult (Dec) | $floatResult (Float) | $hexResult (Hex) | $binaryResult (Bin)",
-            );
+        setState(() {
+          decimalResult = intValue.toString();
+          hexResult = formatHexResult(intValue);
+          binaryResult = formatBinaryResult(intValue);
+          floatResult = floatValue.toString();
+          history.add(
+            "$input = $decimalResult (Dec) | $floatResult (Float) | $hexResult (Hex) | $binaryResult (Bin)",
+          );
         });
-      }
-      else {
-
-      }
-
+      } else {}
     } catch (e) {
       setState(() {
         decimalResult = "Error";
         hexResult = "Error";
         binaryResult = "Error";
+        floatResult = "Error";
       });
     }
+
+    _focusNode.requestFocus();
   }
 
   // Uniform grid layout, 7 columns for all rows
@@ -269,115 +275,135 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget buildCalcButtons() {
     final themeColor = widget.themeColor ?? Colors.red;
-    final contrastColor = ThemeData.estimateBrightnessForColor(themeColor) == Brightness.dark
-        ? Colors.white
-        : Colors.black;
+    final contrastColor =
+        ThemeData.estimateBrightnessForColor(themeColor) == Brightness.dark
+            ? Colors.white
+            : Colors.black;
+
     final rows = showMoreButtons ? moreButtonRows : buttonRows;
     int maxCols = rows.map((row) => row.length).reduce((a, b) => a > b ? a : b);
-    double spacing = 6;
+    double spacing = 3;
     return LayoutBuilder(
       builder: (context, constraints) {
-        double buttonSize = (constraints.maxWidth - (maxCols + 1) * spacing) / maxCols;
+        double buttonSize =
+            (constraints.maxWidth - (maxCols + 1) * spacing) / maxCols;
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: rows.map((row) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: row.map((label) {
-                if (label.isEmpty) {
-                  return SizedBox(width: buttonSize + spacing, height: buttonSize + spacing);
-                }
-                return Padding(
-                  padding: EdgeInsets.all(spacing / 2),
-                  child: SizedBox(
-                    width: buttonSize,
-                    height: buttonSize,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeColor,
-                        foregroundColor: contrastColor,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 2,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (label == 'More') {
-                            showMoreButtons = true;
-                          } else if (label == 'back') {
-                            showMoreButtons = false;
-                          } else if (label == '=' || label == 'ANS') {
-                            _calculateResult();
-                          } else if (label == 'AC') {
-                            _controller.clear();
-                          } else if (label == 'DEL' || label == '<' || label == '⌫') {
-                            // Backspace functionality
-                            if (_controller.text.isNotEmpty) {
-                              final text = _controller.text;
-                              final selection = _controller.selection;
-                              if (selection.start != selection.end) {
-                                // Delete selected text
-                                final newText = text.replaceRange(
-                                  selection.start,
-                                  selection.end,
-                                  '',
-                                );
-                                _controller.text = newText;
-                                _controller.selection = TextSelection.collapsed(
-                                  offset: selection.start,
-                                );
-                              } else if (selection.start > 0) {
-                                // Delete character before cursor
-                                final newText = text.replaceRange(
-                                  selection.start - 1,
-                                  selection.start,
-                                  '',
-                                );
-                                _controller.text = newText;
-                                _controller.selection = TextSelection.collapsed(
-                                  offset: selection.start - 1,
-                                );
-                              }
-                            }
-                          } else if (label == '>') {
-                            // Move cursor right
-                            final selection = _controller.selection;
-                            if (selection.start < _controller.text.length) {
-                              _controller.selection = TextSelection.collapsed(
-                                offset: selection.start + 1,
-                              );
-                            }
-                          } else if (label == '^') {
-                            _controller.text += '^';
-                            _controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: _controller.text.length),
-                            );
-                          } else {
-                            _controller.text += label;
-                            _controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: _controller.text.length),
-                            );
-                          }
-                        });
-                      },
-                      child: Center(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: buttonSize * 0.45,
-                            fontWeight: FontWeight.w900,
-                            color: contrastColor,
+          children:
+              rows.map((row) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children:
+                      row.map((label) {
+                        if (label.isEmpty) {
+                          return SizedBox(
+                            width: buttonSize + spacing,
+                            height: buttonSize + spacing,
+                          );
+                        }
+                        return Padding(
+                          padding: EdgeInsets.all(spacing / 2),
+                          child: SizedBox(
+                            width: buttonSize,
+                            height: buttonSize,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: themeColor,
+                                foregroundColor: contrastColor,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 2,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  if (label == 'More') {
+                                    showMoreButtons = true;
+                                  } else if (label == 'back') {
+                                    showMoreButtons = false;
+                                  } else if (label == '=' || label == 'ANS') {
+                                    _calculateResult();
+                                  } else if (label == 'AC') {
+                                    _controller.clear();
+                                  } else if (label == 'DEL' ||
+                                      label == '<' ||
+                                      label == '⌫') {
+                                    // Backspace functionality
+                                    if (_controller.text.isNotEmpty) {
+                                      final text = _controller.text;
+                                      final selection = _controller.selection;
+                                      if (selection.start != selection.end) {
+                                        // Delete selected text
+                                        final newText = text.replaceRange(
+                                          selection.start,
+                                          selection.end,
+                                          '',
+                                        );
+                                        _controller.text = newText;
+                                        _controller.selection =
+                                            TextSelection.collapsed(
+                                              offset: selection.start,
+                                            );
+                                      } else if (selection.start > 0) {
+                                        // Delete character before cursor
+                                        final newText = text.replaceRange(
+                                          selection.start - 1,
+                                          selection.start,
+                                          '',
+                                        );
+                                        _controller.text = newText;
+                                        _controller.selection =
+                                            TextSelection.collapsed(
+                                              offset: selection.start - 1,
+                                            );
+                                      }
+                                    }
+                                  } else if (label == '>') {
+                                    // Move cursor right
+                                    final selection = _controller.selection;
+                                    if (selection.start <
+                                        _controller.text.length) {
+                                      _controller
+                                          .selection = TextSelection.collapsed(
+                                        offset: selection.start + 1,
+                                      );
+                                    }
+                                  } else if (label == '^') {
+                                    _controller.text += '^';
+                                    _controller
+                                        .selection = TextSelection.fromPosition(
+                                      TextPosition(
+                                        offset: _controller.text.length,
+                                      ),
+                                    );
+                                  } else {
+                                    _controller.text += label;
+                                    _controller
+                                        .selection = TextSelection.fromPosition(
+                                      TextPosition(
+                                        offset: _controller.text.length,
+                                      ),
+                                    );
+                                  }
+                                });
+                              },
+                              child: Center(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: buttonSize * 0.25,
+                                    fontWeight: FontWeight.w900,
+                                    color: contrastColor,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                  ),
+                        );
+                      }).toList(),
                 );
               }).toList(),
-            );
-          }).toList(),
         );
       },
     );
@@ -410,6 +436,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
       tooltip: "Calculate",
       onPressed: _calculateResult,
+    );
+
+    final Widget inlineClearButton = IconButton(
+      icon: Text(
+        "🗑️",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      tooltip: "Clear",
+      onPressed: _clearResult,
     );
 
     Widget buildResultField(String label, String value) {
@@ -519,7 +554,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               labelText: "Enter Expression",
                             ),
                             style: TextStyle(fontSize: 20),
-                            readOnly: Platform.isAndroid, // Disable keyboard on Android
+                            readOnly:
+                                Platform
+                                    .isAndroid, // Disable keyboard on Android
                             showCursor: true,
                             enableInteractiveSelection: true,
                             onTap: () {
@@ -531,7 +568,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                             onSubmitted: (_) => _calculateResult(),
                           ),
                         ),
-                        inlineCalcButton, // Small "C" button to the right
+                        inlineCalcButton, //
+                        inlineClearButton,
                       ],
                     ),
                   ),
@@ -541,7 +579,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   buildResultField("Binary", binaryResult),
                   buildResultField("Floating Point", floatResult),
                   SizedBox(height: 10),
-                  if (showCalcButtons) ...[buildCalcButtons(), SizedBox(height: 10)],
+                  if (showCalcButtons) ...[
+                    buildCalcButtons(),
+                    SizedBox(height: 10),
+                  ],
                   // Remove separate C button, = is now in main grid
                   SizedBox(height: 20),
                   ElevatedButton(
