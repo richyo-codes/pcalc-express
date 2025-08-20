@@ -256,10 +256,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     try {
       final result = evaluateExpression(input);
-      int intValue = result.toInt();
-      double floatValue = result.toDouble();
 
       if (!result.isNaN) {
+        double floatValue = result.toDouble();
+        int intValue = result.toInt();
+
         setState(() {
           decimalResult = intValue.toString();
           hexResult = formatHexResult(intValue);
@@ -269,7 +270,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             "$input = $decimalResult (Dec) | $floatResult (Float) | $hexResult (Hex) | $binaryResult (Bin)",
           );
         });
-      } else {}
+      } else {
+        final errMsg = getLastErrorMessage();
+
+        setState(() {
+          decimalResult = errMsg;
+          hexResult = "";
+          binaryResult = "";
+          floatResult = "";
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $errMsg')));
+
+        setState(() {
+          decimalResult = "Error";
+          hexResult = "Error";
+          binaryResult = "Error";
+          floatResult = "Error";
+        });
+      }
     } catch (e) {
       setState(() {
         decimalResult = "Error";
@@ -387,9 +408,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       builder: (context, constraints) {
         // Constrain button size to be more reasonable
         // Minimum button size of 40, maximum of 80
-        double buttonSize = (constraints.maxWidth - (maxCols + 1) * spacing) / maxCols;
+        double buttonSize =
+            (constraints.maxWidth - (maxCols + 1) * spacing) / maxCols;
         buttonSize = buttonSize.clamp(40.0, 80.0);
-        
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children:
