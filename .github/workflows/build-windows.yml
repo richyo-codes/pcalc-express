@@ -1,0 +1,77 @@
+# GitHub Actions workflow for building Flutter app for Windows using FVM
+
+name: Build Flutter Windows App
+
+on:
+  push:
+    branches: [ main, publish ]
+  pull_request:
+    branches: [ main, publish ]
+
+env:
+  FLUTTER_CHANNEL: 'beta'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - run: |
+          echo "y" | sdkmanager "ndk;26.2.11394342"
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: 'r26d'
+          link-to-sdk: true
+
+      - uses: kuhnroyal/flutter-fvm-config-action/config@v3
+        with:
+          path: '.fvmrc'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config-action.outputs.FLUTTER_VERSION }}
+          channel: beta
+          cache: true
+
+      - name: Version
+        run: flutter doctor
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Build for Windows
+        run: flutter build windows --release
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/x64/runner/Release/
+
+      - name: Build for Android
+        run: flutter build apk --release
+
+      - name: Upload Android build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app
