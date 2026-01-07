@@ -51,3 +51,15 @@ app.*.map.json
 /native/build*
 /native/vcpkg_*
 /native/vcpkg/*
+
+# Generated files specific to Flutter projects
+/build
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.dart_tool/
+generated_plugin_registrant.dart
+generated_plugin_registrant.h
+generated_plugins.cmake
+GeneratedPluginRegistrant.swift
+macos/Flutter/GeneratedPluginRegistrant.swift

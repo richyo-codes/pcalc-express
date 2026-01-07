@@ -33,6 +33,10 @@ You can get FVM here https://fvm.app/documentation/getting-started/installation
 
 This allows the build system to automatically build and bundle the C++ dependency, rather than having to build it seperately and commit binary blobs to this repository.
 
+## Debug Native Asset Build
+
+`dart run hook/build.dart`
+
 ## Credits
 
 - https://github.com/Blake-Madden/tinyexpr-plusplus

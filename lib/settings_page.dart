@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'main.dart'; // Import themeModeNotifier, saveThemeMode
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -6,8 +7,16 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = themeModeNotifier.value;
   bool _showCalcButtonsDesktop = false;
+
+  void _setThemeMode(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+      themeModeNotifier.value = mode;
+      saveThemeMode(mode); // <-- Persist selection
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Radio<ThemeMode>(
                 value: ThemeMode.system,
                 groupValue: _themeMode,
-                onChanged: (value) {
-                  setState(() {
-                    _themeMode = value!;
-                    _applyTheme();
-                  });
-                },
+                onChanged: (value) => _setThemeMode(value!),
               ),
             ),
             ListTile(
@@ -60,12 +64,7 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Radio<ThemeMode>(
                 value: ThemeMode.light,
                 groupValue: _themeMode,
-                onChanged: (value) {
-                  setState(() {
-                    _themeMode = value!;
-                    _applyTheme();
-                  });
-                },
+                onChanged: (value) => _setThemeMode(value!),
               ),
             ),
             ListTile(
@@ -73,25 +72,12 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Radio<ThemeMode>(
                 value: ThemeMode.dark,
                 groupValue: _themeMode,
-                onChanged: (value) {
-                  setState(() {
-                    _themeMode = value!;
-                    _applyTheme();
-                  });
-                },
+                onChanged: (value) => _setThemeMode(value!),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _applyTheme() {
-    // Apply the selected theme mode
-    final app = context.findAncestorWidgetOfExactType<MaterialApp>();
-    if (app != null) {
-      //app.themeMode = _themeMode;
-    }
   }
 }

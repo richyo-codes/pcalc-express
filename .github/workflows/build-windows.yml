@@ -2,21 +2,35 @@
 
 name: Build Flutter Windows App
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [ main, publish ]
+    paths-ignore:
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main, publish ]
-
-env:
-  FLUTTER_CHANNEL: 'beta'
+    paths-ignore:
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
 
 jobs:
   build-windows:
+    if: github.server_url == 'https://github.com'
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required for gh-describe to find tags
 
       - name: Git describe
         id: ghd
@@ -27,18 +41,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - run: |
-          echo "y" | sdkmanager "ndk;26.2.11394342"
-        env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
-
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: 'r26d'
-          link-to-sdk: true
 
       - uses: kuhnroyal/flutter-fvm-config-action/config@v3
         with:
@@ -66,12 +68,3 @@ jobs:
         with:
           name: windows-build
           path: build/windows/x64/runner/Release/
-
-      - name: Build for Android
-        run: flutter build apk --release
-
-      - name: Upload Android build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app

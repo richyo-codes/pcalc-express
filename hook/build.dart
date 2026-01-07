@@ -55,6 +55,14 @@ Future<void> main(List<String> args) async {
     // defines['__ANDROID__'] = '1';
     // and pass API level via flags like: -D__ANDROID_API__=24 (if needed by your setup)
 
+    final libraries = <String>[];
+    String? cppStdLib;
+    if (input.config?.code.targetOS == OS.android) {
+      libraries.addAll(['c++abi', 'unwind', 'm']);
+      flags.addAll(['-static-libstdc++', '-static-libgcc']);
+      cppStdLib = 'c++_static';
+    }
+
     final cbuilder = CBuilder.library(
       name: 'tinyexprpp_fii',
       assetName: 'tinyexprpp_fii.dart',
@@ -62,6 +70,10 @@ Future<void> main(List<String> args) async {
       defines: defines,
       sources: ['native/tinyexprpp_wrapper.cpp', 'native/tinyexpr.cpp'],
       flags: flags,
+      // Link the C++ runtime statically on Android so the native asset has no
+      // dependency on `libc++_shared.so` at load time.
+      cppLinkStdLib: cppStdLib,
+      libraries: libraries,
       language: Language.cpp,
     );
 

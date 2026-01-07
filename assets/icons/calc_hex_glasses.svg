@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded calculator body -->
+  <rect x="56" y="52" width="400" height="408" rx="44" fill="url(#bg)"/>
+  <!-- Screen -->
+  <rect x="96" y="84" width="320" height="110" rx="14" fill="#0B1220"/>
+  <!-- Nerd glasses over screen -->
+  <g transform="translate(120 100)">
+    <rect x="0" y="0" width="100" height="60" rx="10" fill="#111827" stroke="#A78BFA" stroke-width="5"/>
+    <rect x="180" y="0" width="100" height="60" rx="10" fill="#111827" stroke="#A78BFA" stroke-width="5"/>
+    <rect x="100" y="22" width="80" height="12" rx="6" fill="#A78BFA"/>
+    <circle cx="50" cy="30" r="6" fill="#60A5FA"/>
+    <circle cx="230" cy="30" r="6" fill="#60A5FA"/>
+  </g>
+  <!-- Buttons minimal -->
+  <g fill="#E5E7EB" opacity="0.95">
+    <rect x="96" y="214" width="64" height="48" rx="10"/>
+    <rect x="168" y="214" width="64" height="48" rx="10"/>
+    <rect x="240" y="214" width="64" height="48" rx="10"/>
+    <rect x="312" y="214" width="104" height="48" rx="10"/>
+    <rect x="96" y="270" width="64" height="48" rx="10"/>
+    <rect x="168" y="270" width="64" height="48" rx="10"/>
+    <rect x="240" y="270" width="64" height="48" rx="10"/>
+    <rect x="312" y="270" width="104" height="104" rx="14"/>
+    <rect x="96" y="326" width="208" height="48" rx="12"/>
+    <rect x="96" y="382" width="320" height="48" rx="12"/>
+  </g>
+  <!-- 0x on screen corner -->
+  <!-- <text x="110" y="140" font-family="monospace" font-size="32" fill="#93C5FD">0x</text> -->
+</svg>
+

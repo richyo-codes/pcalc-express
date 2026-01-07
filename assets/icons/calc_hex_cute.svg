@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FF6B6B"/>
+      <stop offset="100%" stop-color="#C73866"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1F2937"/>
+      <stop offset="100%" stop-color="#0B1220"/>
+    </linearGradient>
+  </defs>
+  <!-- Body -->
+  <rect x="56" y="40" width="400" height="432" rx="48" fill="url(#g)"/>
+  <rect x="56" y="40" width="400" height="432" rx="48" fill="#000" opacity="0.08"/>
+  <!-- Screen -->
+  <rect x="96" y="72" width="320" height="120" rx="16" fill="url(#screen)"/>
+  <!-- Cute face on screen -->
+  <circle cx="196" cy="126" r="10" fill="#9AE6B4"/>
+  <circle cx="316" cy="126" r="10" fill="#9AE6B4"/>
+  <path d="M216 150 q40 28 80 0" fill="none" stroke="#9AE6B4" stroke-width="8" stroke-linecap="round"/>
+  <!-- Buttons (simplified grid) -->
+  <g fill="#F8FAFC">
+    <rect x="96" y="216" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="168" y="216" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="240" y="216" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="312" y="216" width="104" height="48" rx="10" opacity="0.95"/>
+
+    <rect x="96" y="272" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="168" y="272" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="240" y="272" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="312" y="272" width="104" height="48" rx="10" opacity="0.95"/>
+
+    <rect x="96" y="328" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="168" y="328" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="240" y="328" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="312" y="328" width="104" height="104" rx="14" opacity="0.95"/>
+
+    <rect x="96" y="384" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="168" y="384" width="64" height="48" rx="10" opacity="0.85"/>
+    <rect x="240" y="384" width="64" height="48" rx="10" opacity="0.85"/>
+  </g>
+  <!-- Nerdy hex speech bubble -->
+  <!-- <g transform="translate(310 52)">
+    <path d="M0 0 h140 v64 l-20 20 v-20 h-120 z" fill="#111827" opacity="0.9" stroke="#9AE6B4" stroke-width="3"/>
+    <text x="16" y="40" font-family="monospace" font-size="28" fill="#9AE6B4">0xCAFE</text>
+  </g> -->
+</svg>
+

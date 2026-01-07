@@ -12,26 +12,76 @@ import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:rnd_pcalc_ng/format_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
+
+Future<void> loadThemeMode() async {
+  final prefs = await SharedPreferences.getInstance();
+  final modeString = prefs.getString('themeMode') ?? 'system';
+  switch (modeString) {
+    case 'light':
+      themeModeNotifier.value = ThemeMode.light;
+      break;
+    case 'dark':
+      themeModeNotifier.value = ThemeMode.dark;
+      break;
+    default:
+      themeModeNotifier.value = ThemeMode.system;
+  }
+}
+
+Future<void> saveThemeMode(ThemeMode mode) async {
+  final prefs = await SharedPreferences.getInstance();
+  String modeString;
+  switch (mode) {
+    case ThemeMode.light:
+      modeString = 'light';
+      break;
+    case ThemeMode.dark:
+      modeString = 'dark';
+      break;
+    default:
+      modeString = 'system';
+  }
+  await prefs.setString('themeMode', modeString);
+}
 
 void main() async {
-  // Set window size for Linux desktop
-  if (Platform.isLinux) {
-    // WidgetsFlutterBinding.ensureInitialized();
-    // await windowManager.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
+  await loadThemeMode(); // <-- Load theme mode before runApp
 
-    // WindowOptions windowOptions = const WindowOptions(
-    //   size: Size(620, 800), // Set initial size here
-    //   center: true,
-    //   backgroundColor: Colors.transparent,
-    //   skipTaskbar: false,
-    //   titleBarStyle: TitleBarStyle.normal,
-    // );
-    // windowManager.waitUntilReadyToShow(windowOptions, () async {
-    //   await windowManager.show();
-    //   await windowManager.focus();
-    // });
+  // Configure frameless desktop window and custom drag areas.
+  if (Platform.isLinux || Platform.isWindows) {
+    await windowManager.ensureInitialized();
+
+    const WindowOptions windowOptions = WindowOptions(
+      size: Size(620, 800),
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+    );
+
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setAsFrameless();
+      await windowManager.show();
+      await windowManager.focus();
+    });
   }
-  runApp(ProgrammerCalculator());
+
+  runApp(
+    ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, mode, _) => MaterialApp(
+        theme: ThemeData.light(),
+        darkTheme: ThemeData.dark(),
+        themeMode: mode,
+        home: ProgrammerCalculator(),
+        debugShowCheckedModeBanner: false,
+      ),
+    ),
+  );
 }
 
 bool isValidExpression(String input) {

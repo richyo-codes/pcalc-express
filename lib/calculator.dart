@@ -1,16 +1,14 @@
 import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:expressions/expressions.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:rnd_pcalc_ng/calculator.dart';
 import 'package:rnd_pcalc_ng/settings_page.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:rnd_pcalc_ng/tinyexprpp_fii.dart';
-import 'package:ffi/ffi.dart' as ffi;
 import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:rnd_pcalc_ng/format_helper.dart';
 
 class AppScrollBehavior extends MaterialScrollBehavior {
@@ -62,6 +60,36 @@ class CalcPageIndicator extends StatelessWidget {
       ),
     );
   }
+}
+
+class CalcButtonConfig {
+  final String displayText;
+  final String insertText;
+  final String? tooltip;
+  final void Function(BuildContext context)? onPressed;
+
+  const CalcButtonConfig({
+    required this.displayText,
+    String? insertText,
+    this.tooltip,
+    this.onPressed,
+  }) : insertText = insertText ?? displayText;
+}
+
+class HistoryEntry {
+  final String expression;
+  final String decimal;
+  final String hex;
+  final String binary;
+  final String floatValue;
+
+  const HistoryEntry({
+    required this.expression,
+    required this.decimal,
+    required this.hex,
+    required this.binary,
+    required this.floatValue,
+  });
 }
 
 class ProgrammerCalculator extends StatefulWidget {
@@ -207,15 +235,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
+  bool get _isDesktopPlatform => !(Platform.isAndroid || Platform.isIOS);
+
+  PreferredSizeWidget _wrapAppBarForDesktop(AppBar appBar) {
+    if (Platform.isWindows || Platform.isLinux) {
+      return PreferredSize(
+        preferredSize: appBar.preferredSize,
+        child: DragToMoveArea(child: appBar),
+      );
+    }
+    return appBar;
+  }
+
+  Widget _wrapWithResizeArea(Widget child) {
+    if (Platform.isWindows || Platform.isLinux) {
+      return DragToResizeArea(resizeEdgeSize: 8, child: child);
+    }
+    return child;
+  }
+
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode(); // Added focus node
   String decimalResult = "";
   String hexResult = "";
   String binaryResult = "";
   String floatResult = "";
-  List<String> history = [];
-  bool showHistory = false;
+  List<HistoryEntry> history = [];
   bool showCalcButtons = false;
+  String _selectedResultLabel = "Decimal";
 
   int _currentPanel = 0;
   final PageController _pageController = PageController();
@@ -267,7 +314,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           binaryResult = formatBinaryResult(intValue);
           floatResult = floatValue.toString();
           history.add(
-            "$input = $decimalResult (Dec) | $floatResult (Float) | $hexResult (Hex) | $binaryResult (Bin)",
+            HistoryEntry(
+              expression: input,
+              decimal: decimalResult,
+              hex: hexResult,
+              binary: binaryResult,
+              floatValue: floatResult,
+            ),
           );
         });
       } else {
@@ -304,24 +357,138 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   // Panels of calculator buttons
-  final List<List<List<String>>> buttonPanels = [
-    // General Buttons Page
+  List<List<CalcButtonConfig>> get _generalPanel => [
     [
-      ['(', ')', 'AC', 'DEL'],
-      ['7', '8', '9', '/'],
-      ['4', '5', '6', '*'],
-      ['1', '2', '3', '-'],
-      ['0', '.', '=', '+'],
+      const CalcButtonConfig(
+        displayText: 'AC',
+        tooltip: 'Clear the entire expression',
+      ),
+      const CalcButtonConfig(
+        displayText: 'DEL',
+        tooltip: 'Delete the previous character',
+      ),
+      const CalcButtonConfig(
+        displayText: '(',
+        tooltip: 'Insert opening parenthesis',
+      ),
+      const CalcButtonConfig(
+        displayText: ')',
+        tooltip: 'Insert closing parenthesis',
+      ),
     ],
-    // Programmer Buttons Page
     [
-      ['AND', 'OR', 'XOR', 'NOT'],
-      ['<<', '>>', 'MOD', '%'],
-      ['BIN', 'OCT', 'DEC', 'HEX'],
-      ['0x', '0b', '0o', 'ANS'],
-      ['back', '', '', ''],
+      const CalcButtonConfig(displayText: '7'),
+      const CalcButtonConfig(displayText: '8'),
+      const CalcButtonConfig(displayText: '9'),
+      const CalcButtonConfig(displayText: '/'),
+    ],
+    [
+      const CalcButtonConfig(displayText: '4'),
+      const CalcButtonConfig(displayText: '5'),
+      const CalcButtonConfig(displayText: '6'),
+      const CalcButtonConfig(displayText: '*'),
+    ],
+    [
+      const CalcButtonConfig(displayText: '1'),
+      const CalcButtonConfig(displayText: '2'),
+      const CalcButtonConfig(displayText: '3'),
+      const CalcButtonConfig(displayText: '-'),
+    ],
+    [
+      const CalcButtonConfig(displayText: '0'),
+      const CalcButtonConfig(displayText: '.'),
+      const CalcButtonConfig(displayText: '='),
+      const CalcButtonConfig(displayText: '+'),
     ],
   ];
+
+  List<CalcButtonConfig> get _bitwiseOperators => const [
+    CalcButtonConfig(displayText: '&', tooltip: 'Bitwise AND'),
+    CalcButtonConfig(displayText: '|', tooltip: 'Bitwise OR'),
+    CalcButtonConfig(displayText: '^', tooltip: 'Bitwise XOR'),
+    CalcButtonConfig(displayText: '~', tooltip: 'Bitwise NOT'),
+  ];
+
+  List<CalcButtonConfig> get _logicalOperators => const [
+    CalcButtonConfig(displayText: '&&', tooltip: 'Logical AND'),
+    CalcButtonConfig(displayText: '||', tooltip: 'Logical OR'),
+    CalcButtonConfig(displayText: '!', tooltip: 'Logical NOT'),
+    CalcButtonConfig(displayText: '!=', tooltip: 'Not equal comparison'),
+  ];
+
+  List<List<CalcButtonConfig>> get _defaultProgrammerPanel => [
+    [..._bitwiseOperators],
+    [..._logicalOperators],
+    [
+      const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
+      const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
+      const CalcButtonConfig(displayText: 'MOD', tooltip: 'Modulo operation'),
+      const CalcButtonConfig(displayText: '%', tooltip: 'Percentage operator'),
+    ],
+    [const CalcButtonConfig(displayText: 'POW', tooltip: 'Power function')],
+    [
+      const CalcButtonConfig(displayText: '0x', tooltip: 'Hexadecimal prefix'),
+      const CalcButtonConfig(displayText: '0b', tooltip: 'Binary prefix'),
+      const CalcButtonConfig(displayText: '0o', tooltip: 'Octal prefix'),
+      const CalcButtonConfig(
+        displayText: 'ANS',
+        tooltip: 'Reuse the previous answer',
+      ),
+    ],
+  ];
+
+  List<CalcButtonConfig> get _prefixButtons => const [
+    CalcButtonConfig(displayText: '0x', tooltip: 'Hexadecimal prefix'),
+    CalcButtonConfig(displayText: '0b', tooltip: 'Binary prefix'),
+    CalcButtonConfig(displayText: '0o', tooltip: 'Octal prefix'),
+  ];
+
+  List<List<CalcButtonConfig>> _compactProgrammerPanel() {
+    final logicAndBitwiseButton = CalcButtonConfig(
+      displayText: 'Logic/Bitwise',
+      tooltip: 'Open logical and bitwise operators',
+      onPressed: (context) => _showOperatorPicker(
+        title: 'Logic & Bitwise',
+        options: [..._bitwiseOperators, ..._logicalOperators],
+      ),
+    );
+    final prefixesButton = CalcButtonConfig(
+      displayText: 'Prefixes',
+      tooltip: 'Number base prefixes',
+      onPressed: (context) => _showOperatorPicker(
+        title: 'Number Base Prefixes',
+        options: _prefixButtons,
+      ),
+    );
+
+    return [
+      [
+        logicAndBitwiseButton,
+        const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
+        const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
+        const CalcButtonConfig(displayText: 'POW', tooltip: 'Power function'),
+      ],
+      [
+        const CalcButtonConfig(displayText: 'MOD', tooltip: 'Modulo operation'),
+        const CalcButtonConfig(
+          displayText: '%',
+          tooltip: 'Percentage operator',
+        ),
+        const CalcButtonConfig(
+          displayText: 'ANS',
+          tooltip: 'Reuse the previous answer',
+        ),
+      ],
+      [prefixesButton],
+    ];
+  }
+
+  List<List<List<CalcButtonConfig>>> _buildButtonPanels(bool isCompactLayout) {
+    final programmerPanel = isCompactLayout
+        ? _compactProgrammerPanel()
+        : _defaultProgrammerPanel;
+    return [_generalPanel, programmerPanel];
+  }
 
   // Page names for selector
   final List<String> pageNames = ['General', 'Programmer'];
@@ -336,10 +503,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isSelected
-                      ? (widget.themeColor ?? Colors.red)
-                      : Colors.grey[300],
+              backgroundColor: isSelected
+                  ? (widget.themeColor ?? Colors.red)
+                  : Colors.grey[300],
               foregroundColor: isSelected ? Colors.white : Colors.black,
               elevation: isSelected ? 3 : 0,
             ),
@@ -357,7 +523,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  Widget buildCalcButtonsPageView() {
+  Widget buildCalcButtonsPageView(
+    List<List<List<CalcButtonConfig>>> buttonPanels,
+  ) {
     return Column(
       children: [
         buildPageSelector(),
@@ -395,158 +563,295 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  Widget buildCalcButtonsPanel(List<List<String>> rows) {
+  void _showOperatorPicker({
+    required String title,
+    required List<CalcButtonConfig> options,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: options.map((option) {
+                    return ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        _handleCalcButtonTap(option);
+                      },
+                      child: Text(option.displayText),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _reuseHistoryEntry(HistoryEntry entry) {
+    _controller.text = entry.expression;
+    _controller.selection =
+        TextSelection.collapsed(offset: _controller.text.length);
+    _focusNode.requestFocus();
+  }
+
+  void _openHistorySheet() {
+    if (history.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No history yet')),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SizedBox(
+            height: 320,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final entry = history[history.length - 1 - index];
+                return ListTile(
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _reuseHistoryEntry(entry);
+                  },
+                  title: Text(entry.expression),
+                  subtitle: Text(
+                    "Dec: ${entry.decimal} | Hex: ${entry.hex} | Bin: ${entry.binary}",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.content_paste),
+                        tooltip: 'Reuse expression',
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          _reuseHistoryEntry(entry);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy),
+                        tooltip: 'Copy decimal result',
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: entry.decimal),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Decimal copied')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 8),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _moveCursor(int delta) {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final baseOffset = selection.baseOffset == -1 ? text.length : selection.baseOffset;
+    final extentOffset = selection.extentOffset == -1 ? text.length : selection.extentOffset;
+    final newOffset = (delta.isNegative ? extentOffset : baseOffset) + delta;
+    final clamped = newOffset.clamp(0, text.length);
+    _controller.selection = TextSelection.collapsed(offset: clamped);
+    _focusNode.requestFocus();
+  }
+
+  void _handleCalcButtonTap(CalcButtonConfig button) {
+    final label = button.displayText;
+    if (label == '=' || label == 'ANS') {
+      _calculateResult();
+      return;
+    }
+
+    if (label == 'AC') {
+      _controller.clear();
+      _focusNode.requestFocus();
+      return;
+    }
+
+    if (label == 'DEL' || label == '<' || label == '⌫') {
+      if (_controller.text.isEmpty) {
+        return;
+      }
+      final text = _controller.text;
+      final selection = _controller.selection;
+      if (selection.start != selection.end) {
+        final newText = text.replaceRange(selection.start, selection.end, '');
+        _controller.text = newText;
+        _controller.selection = TextSelection.collapsed(
+          offset: selection.start,
+        );
+      } else if (selection.start > 0) {
+        final newText = text.replaceRange(
+          selection.start - 1,
+          selection.start,
+          '',
+        );
+        _controller.text = newText;
+        _controller.selection = TextSelection.collapsed(
+          offset: selection.start - 1,
+        );
+      }
+      _focusNode.requestFocus();
+      return;
+    }
+
+    if (label == '>') {
+      final selection = _controller.selection;
+      if (selection.start < _controller.text.length) {
+        _controller.selection = TextSelection.collapsed(
+          offset: selection.start + 1,
+        );
+      }
+      _focusNode.requestFocus();
+      return;
+    }
+
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final newText = text.replaceRange(
+      selection.start,
+      selection.end,
+      button.insertText,
+    );
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(
+      offset: selection.start + button.insertText.length,
+    );
+    _focusNode.requestFocus();
+  }
+
+  Widget buildCalcButtonsPanel(List<List<CalcButtonConfig>> rows) {
     final themeColor = widget.themeColor ?? Colors.red;
     final contrastColor =
         ThemeData.estimateBrightnessForColor(themeColor) == Brightness.dark
-            ? Colors.white
-            : Colors.black;
+        ? Colors.white
+        : Colors.black;
 
-    int maxCols = rows.map((row) => row.length).reduce((a, b) => a > b ? a : b);
-    double spacing = 3;
+    final columnCount = rows.fold<int>(
+      0,
+      (max, row) => math.max(max, row.length),
+    );
+    final rowCount = rows.length;
+    final effectiveColumnCount = columnCount == 0 ? 1 : columnCount;
+    final effectiveRowCount = rowCount == 0 ? 1 : rowCount;
+
+    final paddedRows = rows
+        .map<List<CalcButtonConfig?>>(
+          (row) => row.length == columnCount
+              ? row.cast<CalcButtonConfig?>()
+              : [
+                  ...row,
+                  ...List<CalcButtonConfig?>.filled(
+                    columnCount - row.length,
+                    null,
+                  ),
+                ],
+        )
+        .toList();
+
+    final flattenedButtons = paddedRows.expand((row) => row).toList();
+    final isDesktopPlatform = _isDesktopPlatform;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Constrain button size to be more reasonable
-        // Minimum button size of 40, maximum of 80
-        double buttonSize =
-            (constraints.maxWidth - (maxCols + 1) * spacing) / maxCols;
-        buttonSize = buttonSize.clamp(40.0, 80.0);
+        const spacing = 8.0;
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : columnCount * 64.0;
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : rowCount * 64.0;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children:
-              rows.map((row) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children:
-                      row.map((label) {
-                        if (label.isEmpty) {
-                          return SizedBox(
-                            width: buttonSize + spacing,
-                            height: buttonSize + spacing,
-                          );
-                        }
-                        return Padding(
-                          padding: EdgeInsets.all(spacing / 2),
-                          child: SizedBox(
-                            width: buttonSize,
-                            height: buttonSize,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeColor,
-                                foregroundColor: contrastColor,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 2,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  if (label == 'More') {
-                                    _pageController.animateToPage(
-                                      1,
-                                      duration: Duration(milliseconds: 300),
-                                      curve: Curves.ease,
-                                    );
-                                  } else if (label == 'back') {
-                                    _pageController.animateToPage(
-                                      0,
-                                      duration: Duration(milliseconds: 300),
-                                      curve: Curves.ease,
-                                    );
-                                  } else if (label == '=' || label == 'ANS') {
-                                    _calculateResult();
-                                  } else if (label == 'AC') {
-                                    _controller.clear();
-                                  } else if (label == 'DEL' ||
-                                      label == '<' ||
-                                      label == '⌫') {
-                                    if (_controller.text.isNotEmpty) {
-                                      final text = _controller.text;
-                                      final selection = _controller.selection;
-                                      if (selection.start != selection.end) {
-                                        final newText = text.replaceRange(
-                                          selection.start,
-                                          selection.end,
-                                          '',
-                                        );
-                                        _controller.text = newText;
-                                        _controller.selection =
-                                            TextSelection.collapsed(
-                                              offset: selection.start,
-                                            );
-                                      } else if (selection.start > 0) {
-                                        final newText = text.replaceRange(
-                                          selection.start - 1,
-                                          selection.start,
-                                          '',
-                                        );
-                                        _controller.text = newText;
-                                        _controller.selection =
-                                            TextSelection.collapsed(
-                                              offset: selection.start - 1,
-                                            );
-                                      }
-                                    }
-                                  } else if (label == '>') {
-                                    final selection = _controller.selection;
-                                    if (selection.start <
-                                        _controller.text.length) {
-                                      _controller
-                                          .selection = TextSelection.collapsed(
-                                        offset: selection.start + 1,
-                                      );
-                                    }
-                                  } else if (label == '^') {
-                                    // Insert ^ at current cursor position
-                                    final text = _controller.text;
-                                    final selection = _controller.selection;
-                                    final newText = text.replaceRange(
-                                      selection.start,
-                                      selection.end,
-                                      '^',
-                                    );
-                                    _controller.text = newText;
-                                    // Set cursor position after the inserted text
-                                    _controller
-                                        .selection = TextSelection.collapsed(
-                                      offset: selection.start + 1,
-                                    );
-                                  } else {
-                                    // Insert text at current cursor position
-                                    final text = _controller.text;
-                                    final selection = _controller.selection;
-                                    final newText = text.replaceRange(
-                                      selection.start,
-                                      selection.end,
-                                      label,
-                                    );
-                                    _controller.text = newText;
-                                    // Set cursor position after the inserted text
-                                    _controller
-                                        .selection = TextSelection.collapsed(
-                                      offset: selection.start + label.length,
-                                    );
-                                  }
-                                });
-                              },
-                              child: Center(
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: buttonSize * 0.25,
-                                    fontWeight: FontWeight.w900,
-                                    color: contrastColor,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                );
-              }).toList(),
+        final usableWidth = width - spacing * (effectiveColumnCount - 1);
+        final usableHeight = height - spacing * (effectiveRowCount - 1);
+        final cellWidth = usableWidth / effectiveColumnCount;
+        final cellHeight = usableHeight / effectiveRowCount;
+        final aspectRatio = cellHeight > 0 ? cellWidth / cellHeight : 1.1;
+        final double baseFontSize = cellHeight > 0
+            ? math.max(14.0, math.min(cellHeight * 0.35, 22.0))
+            : 18.0;
+
+        return GridView.builder(
+          itemCount: flattenedButtons.length,
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: effectiveColumnCount,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+            childAspectRatio: aspectRatio,
+          ),
+          itemBuilder: (context, index) {
+            final button = flattenedButtons[index];
+            if (button == null) {
+              return SizedBox.shrink();
+            }
+            Widget calcButton = ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeColor,
+                foregroundColor: contrastColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                elevation: 2,
+              ),
+              onPressed: () {
+                if (button.onPressed != null) {
+                  button.onPressed!(context);
+                } else {
+                  _handleCalcButtonTap(button);
+                }
+              },
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  button.displayText,
+                  style: TextStyle(
+                    fontSize: baseFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: contrastColor,
+                  ),
+                ),
+              ),
+            );
+            if (isDesktopPlatform && (button.tooltip?.isNotEmpty ?? false)) {
+              calcButton = Tooltip(message: button.tooltip!, child: calcButton);
+            }
+            return calcButton;
+          },
         );
       },
     );
@@ -554,89 +859,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate button: square, bottom right, "C" symbol
-    final Widget calcButton = SizedBox(
-      width: 56,
-      height: 56,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: EdgeInsets.zero,
-        ),
-        onPressed: _calculateResult,
-        child: Text(
-          "C",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
+    final size = MediaQuery.of(context).size;
+    final bool isCompactLayout =
+        size.width < 520 || size.height < 720 || !_isDesktopPlatform;
+    final buttonPanels = _buildButtonPanels(isCompactLayout);
 
-    // Small "C" button to the right of the text input
-    final Widget inlineCalcButton = IconButton(
-      icon: Text(
-        "C",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
-      tooltip: "Calculate",
-      onPressed: _calculateResult,
-    );
-
-    final Widget inlineClearButton = IconButton(
-      icon: Text(
-        "🗑️",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
-      tooltip: "Clear",
-      onPressed: _clearResult,
-    );
-
-    Widget buildResultField(String label, String value) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 110,
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Expanded(
-              child: TextField(
-                controller: TextEditingController(text: value),
-                readOnly: true,
-                style: TextStyle(fontSize: 16),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 8,
-                  ),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.copy, size: 20),
-              tooltip: 'Copy',
-              onPressed:
-                  value.isNotEmpty && value != 'Error'
-                      ? () {
-                        Clipboard.setData(ClipboardData(text: value));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Copied to clipboard')),
-                        );
-                      }
-                      : null,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
+    final PreferredSizeWidget appBar = _wrapAppBarForDesktop(
+      AppBar(
         title: Text("Programmer Calculator"),
         backgroundColor: widget.themeColor ?? Colors.red,
         actions: [
@@ -661,11 +890,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (context) => SettingsPage(
-                        //onThemeColorChanged: widget.onThemeColorChanged,
-                        //currentThemeColor: widget.themeColor ?? Colors.red,
-                      ),
+                  builder: (context) => SettingsPage(
+                    //onThemeColorChanged: widget.onThemeColorChanged,
+                    //currentThemeColor: widget.themeColor ?? Colors.red,
+                  ),
                 ),
               );
               if (result is bool) {
@@ -677,78 +905,189 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    );
+
+    // Small "C" button to the right of the text input
+    final Widget inlineCalcButton = IconButton(
+      icon: Text(
+        "C",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      tooltip: "Calculate",
+      onPressed: _calculateResult,
+    );
+
+    final Widget inlineClearButton = IconButton(
+      icon: Text(
+        "🗑️",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      tooltip: "Clear",
+      onPressed: _clearResult,
+    );
+
+    Widget buildResultField(
+      String label,
+      String value, {
+      bool compact = false,
+    }) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
           children: [
-            Expanded(
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 56, // Give the row a fixed height
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: "Enter Expression",
-                            ),
-                            style: TextStyle(fontSize: 20),
-                            readOnly:
-                                Platform
-                                    .isAndroid, // Disable keyboard on Android
-                            showCursor: true,
-                            enableInteractiveSelection: true,
-                            onTap: () {
-                              if (Platform.isAndroid) {
-                                // Keep focus so user can use app keypad
-                                _focusNode.requestFocus();
-                              }
-                            },
-                            onSubmitted: (_) => _calculateResult(),
-                          ),
-                        ),
-                        inlineCalcButton, //
-                        inlineClearButton,
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  buildResultField("Decimal", decimalResult),
-                  buildResultField("Hexadecimal", hexResult),
-                  buildResultField("Binary", binaryResult),
-                  buildResultField("Floating Point", floatResult),
-                  SizedBox(height: 10),
-                  if (showCalcButtons) ...[
-                    buildCalcButtonsPageView(),
-                    SizedBox(height: 10),
-                  ],
-                  // Remove separate C button, = is now in main grid
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        showHistory = !showHistory;
-                      });
-                    },
-                    child: Text(showHistory ? "Hide History" : "Show History"),
-                  ),
-                  if (showHistory)
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: history.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(title: Text(history[index]));
-                        },
-                      ),
-                    ),
-                ],
+            SizedBox(
+              width: compact ? 90 : 110,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: compact ? 14 : 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: value),
+                readOnly: true,
+                style: TextStyle(fontSize: compact ? 14 : 16),
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: compact ? 6 : 8,
+                    horizontal: compact ? 6 : 8,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.copy, size: 20),
+              tooltip: 'Copy',
+              onPressed: value.isNotEmpty && value != 'Error'
+                  ? () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Copied to clipboard')),
+                      );
+                    }
+                  : null,
+            ),
           ],
+        ),
+      );
+    }
+
+    Widget buildResultsSection(bool isCompactLayout) {
+      final results = <String, String>{
+        "Dec": decimalResult,
+        "Hex": hexResult,
+        "Bin": binaryResult,
+        "Float": floatResult,
+      };
+
+      if (!isCompactLayout) {
+        return Column(
+          children: [
+            buildResultField("Decimal", decimalResult),
+            buildResultField("Hexadecimal", hexResult),
+            buildResultField("Binary", binaryResult),
+            buildResultField("Floating Point", floatResult),
+          ],
+        );
+      }
+
+      final selectedValue = results[_selectedResultLabel] ?? "";
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: results.keys.map((label) {
+              return ChoiceChip(
+                label: Text(label),
+                selected: _selectedResultLabel == label,
+                onSelected: (_) {
+                  setState(() {
+                    _selectedResultLabel = label;
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          buildResultField(_selectedResultLabel, selectedValue, compact: true),
+        ],
+      );
+    }
+
+    return _wrapWithResizeArea(
+      Scaffold(
+        appBar: appBar,
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 56, // Give the row a fixed height
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: "Enter Expression",
+                              ),
+                              style: TextStyle(fontSize: 20),
+                              readOnly: Platform
+                                  .isAndroid, // Disable keyboard on Android
+                              showCursor: true,
+                              enableInteractiveSelection: true,
+                              onTap: () {
+                                if (Platform.isAndroid) {
+                                  // Keep focus so user can use app keypad
+                                  _focusNode.requestFocus();
+                                }
+                              },
+                              onSubmitted: (_) => _calculateResult(),
+                            ),
+                          ),
+                          inlineCalcButton, //
+                          inlineClearButton,
+                          if (Platform.isAndroid || Platform.isIOS) ...[
+                            IconButton(
+                              icon: const Icon(Icons.arrow_left),
+                              tooltip: 'Move cursor left',
+                              onPressed: () => _moveCursor(-1),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_right),
+                              tooltip: 'Move cursor right',
+                              onPressed: () => _moveCursor(1),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    buildResultsSection(isCompactLayout),
+                    SizedBox(height: 10),
+                    if (showCalcButtons) ...[
+                      buildCalcButtonsPageView(buttonPanels),
+                      SizedBox(height: 10),
+                    ],
+                    SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rnd_pcalc_ng"
+    namespace = "com.rnd.pcalc_ng"
     compileSdk = flutter.compileSdkVersion
     //ndkVersion = flutter.ndkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "29.0.14033849"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

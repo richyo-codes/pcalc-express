@@ -1,0 +1,40 @@
+# # flutter pub run flutter_launcher_icons
+
+
+flutter_launcher_icons:
+  image_path: "assets/icons/app_icon.png"
+
+  # Global desktop/web configs (non-flavored)
+  web:
+    generate: true
+    image_path: assets/icons/app_icon.png
+    background_color: '#0E1116'
+    theme_color: '#0E1116'
+  macos:
+    generate: true
+    image_path: assets/icons/app_icon.png
+  windows:
+    generate: true
+    image_path: assets/icons/app_icon.png
+    icon_size: 48
+  linux:
+    generate: true
+    image_path: assets/icons/app_icon.png
+  android:
+    generate: true
+    image_path: assets/icons/app_icon.png
+
+  # Use flavors for Android/iOS launcher icons
+  flavors:
+    dev:
+      android: true
+      ios: true
+      image_path: assets/icons/dev_icon.png
+      adaptive_icon_foreground: assets/icons/dev_icon.png
+      adaptive_icon_background: '#0E1116'
+    prod:
+      android: true
+      ios: true
+      image_path: assets/icons/prod_icon.png
+      adaptive_icon_foreground: assets/icons/prod_icon.png
+      adaptive_icon_background: '#0E1116'

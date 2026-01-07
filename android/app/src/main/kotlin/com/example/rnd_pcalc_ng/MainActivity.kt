@@ -1,4 +1,4 @@
-package com.example.rnd_pcalc_ng
+package com.rnd.pcalc_ng
 
 import io.flutter.embedding.android.FlutterActivity
 
