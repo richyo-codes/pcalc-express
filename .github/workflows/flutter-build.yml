@@ -1,0 +1,279 @@
+name: Flutter Build and Upload
+
+on:
+  push:
+    branches: ["main", "publish"]
+    tags: ["v*"]
+    paths-ignore:
+      - "**/*.md"
+  pull_request:
+    branches: ["main", "publish"]
+    paths-ignore:
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install Android SDK command-line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          wget -qO /tmp/android-cmdline-tools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/android-cmdline-tools.zip -d /tmp/android-cmdline-tools
+          rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          mv /tmp/android-cmdline-tools/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" --licenses > /dev/null
+          set -o pipefail
+          "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14033849"
+
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Configure Flutter Android SDK path
+        run: flutter config --android-sdk "$ANDROID_SDK_ROOT"
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Android release APK
+        run: flutter build apk --release
+
+      - name: Upload Android artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-android-apk
+          filename: rnd-pcalc-ng-android-apk
+          version: ${{ steps.version.outputs.semver }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          append-max-detail-suffix: true
+          retention-days: 7
+
+  linux:
+    name: Linux bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
+            libsecret-1-dev libssl-dev
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Upload Linux artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-linux-bundle
+          filename: rnd-pcalc-ng-linux-bundle
+          version: ${{ steps.version.outputs.semver }}
+          path: build/linux/x64/release/bundle/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+  windows:
+    name: Windows bundle
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-windows-bundle
+          filename: rnd-pcalc-ng-windows-bundle
+          version: ${{ steps.version.outputs.semver }}
+          path: build/windows/x64/runner/Release/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Upload macOS artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-macos-app
+          filename: rnd-pcalc-ng-macos-app
+          version: ${{ steps.version.outputs.semver }}
+          path: build/macos/Build/Products/Release/rnd_pcalc_ng.app/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+  flatpak:
+    name: Linux Flatpak
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Install Flatpak build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder dbus-user-session
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Flatpak bundle
+        run: bash ./tool/build_flatpak.sh --out-dir "$RUNNER_TEMP/rnd-pcalc-ng-flatpak"
+
+      - name: Upload Flatpak artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-flatpak
+          filename: rnd-pcalc-ng-flatpak
+          version: ${{ steps.version.outputs.semver }}
+          path: ${{ runner.temp }}/rnd-pcalc-ng-flatpak/com.rnd.pcalc_ng.flatpak
+          append-max-detail-suffix: true
+          retention-days: 7
