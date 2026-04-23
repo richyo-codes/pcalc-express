@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.rnd.pcalc_ng</id>
+  <name>RND PCalc</name>
+  <summary>Programmer calculator with C-like expressions</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <launchable type="desktop-id">com.rnd.pcalc_ng.desktop</launchable>
+  <description>
+    <p>
+      RND PCalc is a programmer calculator inspired by AnalogX PCalc and built
+      with Flutter. It targets desktop and mobile platforms and focuses on
+      C-like math and logic expressions.
+    </p>
+  </description>
+  <categories>
+    <category>Utility</category>
+    <category>Calculator</category>
+  </categories>
+  <developer id="com.rnd">
+    <name>RichNetDesign</name>
+  </developer>
+</component>

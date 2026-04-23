@@ -3,12 +3,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:rnd_pcalc_ng/settings_page.dart';
-import 'package:window_manager/window_manager.dart';
-
-import 'package:rnd_pcalc_ng/tinyexprpp_fii.dart';
-import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:rnd_pcalc_ng/window_drag_controller.dart';
+import 'package:rnd_pcalc_ng/settings_page.dart';
+
+import 'package:tinyexpr_plusplus_ffi/tinyexprpp_fii.dart';
+import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:rnd_pcalc_ng/format_helper.dart';
 
 class AppScrollBehavior extends MaterialScrollBehavior {
@@ -236,23 +236,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   bool get _isDesktopPlatform => !(Platform.isAndroid || Platform.isIOS);
-
-  PreferredSizeWidget _wrapAppBarForDesktop(AppBar appBar) {
-    if (Platform.isWindows || Platform.isLinux) {
-      return PreferredSize(
-        preferredSize: appBar.preferredSize,
-        child: DragToMoveArea(child: appBar),
-      );
-    }
-    return appBar;
-  }
-
-  Widget _wrapWithResizeArea(Widget child) {
-    if (Platform.isWindows || Platform.isLinux) {
-      return DragToResizeArea(resizeEdgeSize: 8, child: child);
-    }
-    return child;
-  }
 
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode(); // Added focus node
@@ -526,12 +509,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget buildCalcButtonsPageView(
     List<List<List<CalcButtonConfig>>> buttonPanels,
   ) {
+    final bool isCompactLayout =
+        MediaQuery.of(context).size.width < 520 ||
+        MediaQuery.of(context).size.height < 720 ||
+        !_isDesktopPlatform;
+    final int maxRowCount = buttonPanels.fold<int>(
+      0,
+      (maxRows, panel) => math.max(maxRows, panel.length),
+    );
+    final double panelHeight = isCompactLayout
+        ? 420
+        : maxRowCount * 68.0 + math.max(0, maxRowCount - 1) * 8.0;
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         buildPageSelector(),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 420,
+          height: panelHeight,
           child: PageView.builder(
             controller: _pageController,
             itemCount: buttonPanels.length,
@@ -545,7 +541,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             },
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         CalcPageIndicator(
           pageCount: buttonPanels.length,
           currentPage: _currentPanel,
@@ -605,16 +601,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _reuseHistoryEntry(HistoryEntry entry) {
     _controller.text = entry.expression;
-    _controller.selection =
-        TextSelection.collapsed(offset: _controller.text.length);
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
     _focusNode.requestFocus();
   }
 
   void _openHistorySheet() {
     if (history.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No history yet')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No history yet')));
       return;
     }
     showModalBottomSheet(
@@ -655,9 +652,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         icon: const Icon(Icons.copy),
                         tooltip: 'Copy decimal result',
                         onPressed: () {
-                          Clipboard.setData(
-                            ClipboardData(text: entry.decimal),
-                          );
+                          Clipboard.setData(ClipboardData(text: entry.decimal));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Decimal copied')),
                           );
@@ -678,8 +673,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _moveCursor(int delta) {
     final text = _controller.text;
     final selection = _controller.selection;
-    final baseOffset = selection.baseOffset == -1 ? text.length : selection.baseOffset;
-    final extentOffset = selection.extentOffset == -1 ? text.length : selection.extentOffset;
+    final baseOffset = selection.baseOffset == -1
+        ? text.length
+        : selection.baseOffset;
+    final extentOffset = selection.extentOffset == -1
+        ? text.length
+        : selection.extentOffset;
     final newOffset = (delta.isNegative ? extentOffset : baseOffset) + delta;
     final clamped = newOffset.clamp(0, text.length);
     _controller.selection = TextSelection.collapsed(offset: clamped);
@@ -786,12 +785,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 8.0;
+        const desktopButtonWidth = 88.0;
+        const desktopButtonHeight = 68.0;
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
-            : columnCount * 64.0;
+            : columnCount * desktopButtonWidth;
         final height = constraints.maxHeight.isFinite
             ? constraints.maxHeight
-            : rowCount * 64.0;
+            : rowCount * desktopButtonHeight;
 
         final usableWidth = width - spacing * (effectiveColumnCount - 1);
         final usableHeight = height - spacing * (effectiveRowCount - 1);
@@ -801,6 +802,91 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         final double baseFontSize = cellHeight > 0
             ? math.max(14.0, math.min(cellHeight * 0.35, 22.0))
             : 18.0;
+
+        Widget buildButtonCell(
+          CalcButtonConfig? button, {
+          required double width,
+          required double height,
+          required double fontSize,
+        }) {
+          if (button == null) {
+            return SizedBox(width: width, height: height);
+          }
+
+          Widget calcButton = ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeColor,
+              foregroundColor: contrastColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              elevation: 2,
+            ),
+            onPressed: () {
+              if (button.onPressed != null) {
+                button.onPressed!(context);
+              } else {
+                _handleCalcButtonTap(button);
+              }
+            },
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                button.displayText,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w700,
+                  color: contrastColor,
+                ),
+              ),
+            ),
+          );
+
+          if (isDesktopPlatform && (button.tooltip?.isNotEmpty ?? false)) {
+            calcButton = Tooltip(message: button.tooltip!, child: calcButton);
+          }
+
+          return SizedBox(width: width, height: height, child: calcButton);
+        }
+
+        if (isDesktopPlatform) {
+          final desktopPanelWidth =
+              effectiveColumnCount * desktopButtonWidth +
+              math.max(0, effectiveColumnCount - 1) * spacing;
+
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: desktopPanelWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(paddedRows.length, (rowIndex) {
+                  final row = paddedRows[rowIndex];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: rowIndex == paddedRows.length - 1 ? 0 : spacing,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int index = 0; index < row.length; index++) ...[
+                          if (index > 0) const SizedBox(width: spacing),
+                          buildButtonCell(
+                            row[index],
+                            width: desktopButtonWidth,
+                            height: desktopButtonHeight,
+                            fontSize: 20,
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+          );
+        }
 
         return GridView.builder(
           itemCount: flattenedButtons.length,
@@ -814,43 +900,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             childAspectRatio: aspectRatio,
           ),
           itemBuilder: (context, index) {
-            final button = flattenedButtons[index];
-            if (button == null) {
-              return SizedBox.shrink();
-            }
-            Widget calcButton = ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeColor,
-                foregroundColor: contrastColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                elevation: 2,
-              ),
-              onPressed: () {
-                if (button.onPressed != null) {
-                  button.onPressed!(context);
-                } else {
-                  _handleCalcButtonTap(button);
-                }
-              },
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  button.displayText,
-                  style: TextStyle(
-                    fontSize: baseFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: contrastColor,
-                  ),
-                ),
-              ),
+            return buildButtonCell(
+              flattenedButtons[index],
+              width: cellWidth,
+              height: cellHeight,
+              fontSize: baseFontSize,
             );
-            if (isDesktopPlatform && (button.tooltip?.isNotEmpty ?? false)) {
-              calcButton = Tooltip(message: button.tooltip!, child: calcButton);
-            }
-            return calcButton;
           },
         );
       },
@@ -860,52 +915,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final bool isCompactLayout =
-        size.width < 520 || size.height < 720 || !_isDesktopPlatform;
+    final bool isCompactLayout = size.width < 520 || !_isDesktopPlatform;
     final buttonPanels = _buildButtonPanels(isCompactLayout);
-
-    final PreferredSizeWidget appBar = _wrapAppBarForDesktop(
-      AppBar(
-        title: Text("Programmer Calculator"),
-        backgroundColor: widget.themeColor ?? Colors.red,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            tooltip: 'Add Variable',
-            onPressed: _showAddVariableDialog,
-          ),
-          IconButton(
-            icon: Icon(Icons.help_outline),
-            tooltip: 'Help',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => HelpScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsPage(
-                    //onThemeColorChanged: widget.onThemeColorChanged,
-                    //currentThemeColor: widget.themeColor ?? Colors.red,
-                  ),
-                ),
-              );
-              if (result is bool) {
-                setState(() {
-                  showCalcButtons = result;
-                });
-              }
-            },
-          ),
-        ],
-      ),
-    );
 
     // Small "C" button to the right of the text input
     final Widget inlineCalcButton = IconButton(
@@ -1022,9 +1033,58 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       );
     }
 
-    return _wrapWithResizeArea(
-      Scaffold(
-        appBar: appBar,
+    final headerActions = [
+      WindowChromeActionButton(
+        icon: Icons.add,
+        tooltip: 'Add Variable',
+        onPressed: _showAddVariableDialog,
+      ),
+      WindowChromeActionButton(
+        icon: Icons.help_outline,
+        tooltip: 'Help',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => HelpScreen()),
+          );
+        },
+      ),
+      WindowChromeActionButton(
+        icon: Icons.settings,
+        tooltip: 'Settings',
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SettingsPage(
+                //onThemeColorChanged: widget.onThemeColorChanged,
+                //currentThemeColor: widget.themeColor ?? Colors.red,
+              ),
+            ),
+          );
+          if (result is bool) {
+            setState(() {
+              showCalcButtons = result;
+            });
+          }
+        },
+      ),
+    ];
+
+    return FramelessWindowResizeFrame(
+      child: Scaffold(
+        appBar: WindowChromeHeader(
+          title: const Text("Programmer Calculator"),
+          backgroundColor: widget.themeColor ?? Colors.red,
+          foregroundColor:
+              ThemeData.estimateBrightnessForColor(
+                    widget.themeColor ?? Colors.red,
+                  ) ==
+                  Brightness.dark
+              ? Colors.white
+              : Colors.black,
+          actions: headerActions,
+        ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -1076,13 +1136,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    buildResultsSection(isCompactLayout),
-                    SizedBox(height: 10),
+                    Flexible(
+                      fit: showCalcButtons ? FlexFit.loose : FlexFit.tight,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: buildResultsSection(isCompactLayout),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     if (showCalcButtons) ...[
                       buildCalcButtonsPageView(buttonPanels),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                     ],
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

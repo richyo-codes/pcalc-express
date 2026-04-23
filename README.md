@@ -24,11 +24,9 @@ Other backends or implementations are currently being investigated.
 ## Flutter Native Assets
 
 This app also serves as a demonstration of the usage of Flutter Native Assets and build hooks.  
-At this time it requires using the Flutter Beta Channel.  
-
 If you use FVM the `.fvmrc`  should point to a working SDK.
 You can get FVM here https://fvm.app/documentation/getting-started/installation
- - `fvm use 3.35.0-0.1.pre`
+ - `fvm use`
  - `fvm flutter build linux`
 
 This allows the build system to automatically build and bundle the C++ dependency, rather than having to build it seperately and commit binary blobs to this repository.
@@ -36,6 +34,15 @@ This allows the build system to automatically build and bundle the C++ dependenc
 ## Debug Native Asset Build
 
 `dart run hook/build.dart`
+
+## Flatpak
+
+Flatpak packaging files live under `flatpak/`.
+
+- Host build: `./tools/build_flatpak.sh`
+- Container build: `./tools/build_flatpak_container.sh`
+
+See `docs/FLATPAK.md` for details.
 
 ## Credits
 

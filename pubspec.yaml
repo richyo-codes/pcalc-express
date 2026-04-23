@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  tinyexpr_plusplus_ffi:
+    git:
+      url: https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -39,9 +43,6 @@ dependencies:
   ffi: ^2.1.4
   url_launcher: ^6.3.2
   window_manager: ^0.5.1
-  hooks: ^1.00.0
-  native_toolchain_c: ^0.17.0
-  code_assets: any
   shared_preferences: ^2.5.3
 
 dev_dependencies:
@@ -57,8 +58,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:

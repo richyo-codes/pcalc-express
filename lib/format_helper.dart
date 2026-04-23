@@ -14,9 +14,22 @@ String formatHexResult(int intValue) {
 }
 
 String formatBinaryResult(int intValue) {
-  final hexResult = intValue.toRadixString(2).toUpperCase().padLeft(32, '0');
+  final normalizedValue = intValue.toUnsigned(32);
+  final significantBits = normalizedValue == 0 ? 1 : normalizedValue.bitLength;
+  final bitWidth = significantBits <= 8
+      ? 8
+      : significantBits <= 16
+      ? 16
+      : 32;
 
-  return hexResult;
+  final binary = normalizedValue
+      .toRadixString(2)
+      .toUpperCase()
+      .padLeft(bitWidth, '0');
+
+  return binary
+      .replaceAllMapped(RegExp(r'.{8}'), (match) => '${match.group(0)} ')
+      .trim();
 }
 
 String formatFloatResult(double value) {

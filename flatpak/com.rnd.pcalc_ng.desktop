@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=RND PCalc
+Comment=Programmer calculator built with Flutter
+Exec=run-rnd-pcalc-ng
+Icon=com.rnd.pcalc_ng
+Terminal=false
+Type=Application
+Categories=Utility;Calculator;
+StartupNotify=true

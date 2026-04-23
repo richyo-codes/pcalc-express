@@ -5,8 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:rnd_pcalc_ng/calculator.dart';
 import 'package:rnd_pcalc_ng/settings_page.dart';
-
-import 'package:rnd_pcalc_ng/tinyexprpp_fii.dart';
+import 'package:tinyexpr_plusplus_ffi/tinyexprpp_fii.dart';
 import 'package:ffi/ffi.dart' as ffi;
 import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:flutter/services.dart';

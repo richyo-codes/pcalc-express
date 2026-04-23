@@ -4,6 +4,58 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+
+int ResizeEdgeToHitTest(const std::string& edge) {
+  if (edge == "top") {
+    return HTTOP;
+  }
+  if (edge == "topRight") {
+    return HTTOPRIGHT;
+  }
+  if (edge == "right") {
+    return HTRIGHT;
+  }
+  if (edge == "bottomRight") {
+    return HTBOTTOMRIGHT;
+  }
+  if (edge == "bottom") {
+    return HTBOTTOM;
+  }
+  if (edge == "bottomLeft") {
+    return HTBOTTOMLEFT;
+  }
+  if (edge == "left") {
+    return HTLEFT;
+  }
+  if (edge == "topLeft") {
+    return HTTOPLEFT;
+  }
+  return HTBOTTOMRIGHT;
+}
+
+int ParseResizeHitTest(const flutter::EncodableValue* arguments,
+                       int fallback = HTBOTTOMRIGHT) {
+  if (arguments == nullptr) {
+    return fallback;
+  }
+  const auto* map = std::get_if<flutter::EncodableMap>(arguments);
+  if (map == nullptr) {
+    return fallback;
+  }
+  const auto edge_it = map->find(flutter::EncodableValue("edge"));
+  if (edge_it == map->end()) {
+    return fallback;
+  }
+  const auto* edge = std::get_if<std::string>(&edge_it->second);
+  if (edge == nullptr) {
+    return fallback;
+  }
+  return ResizeEdgeToHitTest(*edge);
+}
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -26,6 +78,74 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
+
+  window_drag_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "app/window_drag",
+          &flutter::StandardMethodCodec::GetInstance());
+  window_drag_channel_->SetMethodCallHandler(
+      [this](const auto& call, auto result) {
+        const std::string& method = call.method_name();
+        HWND handle = GetHandle();
+        if (method == "startDrag") {
+          if (handle != nullptr) {
+            ReleaseCapture();
+            SendMessage(handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+          }
+          result->Success();
+          return;
+        }
+        if (method == "startResize") {
+          if (handle != nullptr) {
+            const int hit_test = ParseResizeHitTest(call.arguments());
+            POINT cursor{};
+            GetCursorPos(&cursor);
+            ReleaseCapture();
+            SendMessage(handle, WM_NCLBUTTONDOWN, hit_test,
+                        MAKELPARAM(cursor.x, cursor.y));
+          }
+          result->Success();
+          return;
+        }
+        if (method == "minimize") {
+          if (handle != nullptr) {
+            ShowWindow(handle, SW_MINIMIZE);
+          }
+          result->Success();
+          return;
+        }
+        if (method == "maximize") {
+          if (handle != nullptr) {
+            ShowWindow(handle, SW_MAXIMIZE);
+          }
+          result->Success();
+          return;
+        }
+        if (method == "isMaximized") {
+          result->Success(flutter::EncodableValue(handle != nullptr &&
+                                                  IsZoomed(handle) != FALSE));
+          return;
+        }
+        if (method == "toggleMaximize") {
+          if (handle != nullptr) {
+            if (IsZoomed(handle)) {
+              ShowWindow(handle, SW_RESTORE);
+            } else {
+              ShowWindow(handle, SW_MAXIMIZE);
+            }
+          }
+          result->Success();
+          return;
+        }
+        if (method == "close") {
+          if (handle != nullptr) {
+            PostMessage(handle, WM_CLOSE, 0, 0);
+          }
+          result->Success();
+          return;
+        }
+        result->NotImplemented();
+      });
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
