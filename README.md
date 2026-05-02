@@ -1,12 +1,10 @@
-# RND PCalc
+# PCalc Express
 
 This is a programming calculator partially inspired by AnalogX PCalc.
 
 The primary goal is to allow using C like math and logic expressions at parity with AnalogX PCalc.  
 Unlike PCalc which is Windows Only, leveraging Flutter this app will run on Windows, Linux, Mac, Android and iOS.
 Eventually I might add additional features.  Right now it is mostly a fun project to play with Flutter and C++ interop.
-
-
 
 ## Math Expression Parser
 
@@ -24,10 +22,6 @@ Other backends or implementations are currently being investigated.
 ## Flutter Native Assets
 
 This app also serves as a demonstration of the usage of Flutter Native Assets and build hooks.  
-If you use FVM the `.fvmrc`  should point to a working SDK.
-You can get FVM here https://fvm.app/documentation/getting-started/installation
- - `fvm use`
- - `fvm flutter build linux`
 
 This allows the build system to automatically build and bundle the C++ dependency, rather than having to build it seperately and commit binary blobs to this repository.
 
