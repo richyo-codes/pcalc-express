@@ -1,13 +1,13 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rnd_pcalc_ng/platform_capabilities.dart';
 import 'package:rnd_pcalc_ng/window_drag_controller.dart';
 import 'package:rnd_pcalc_ng/settings_page.dart';
 
-import 'package:tinyexpr_plusplus_ffi/tinyexprpp_fii.dart';
+import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
 import 'package:rnd_pcalc_ng/help_screen.dart';
 import 'package:rnd_pcalc_ng/format_helper.dart';
 
@@ -235,7 +235,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  bool get _isDesktopPlatform => !(Platform.isAndroid || Platform.isIOS);
+  bool get _isDesktopPlatform => isDesktopPlatform;
 
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode(); // Added focus node
@@ -255,7 +255,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     super.initState();
 
     // Determine if calculator buttons should be shown
-    if (Platform.isAndroid) {
+    if (isAndroid) {
       showCalcButtons = true;
     } else {
       showCalcButtons = widget.showCalcButtonsDesktop ?? false;
@@ -1105,12 +1105,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 labelText: "Enter Expression",
                               ),
                               style: TextStyle(fontSize: 20),
-                              readOnly: Platform
-                                  .isAndroid, // Disable keyboard on Android
+                              readOnly:
+                                  isAndroid, // Disable keyboard on Android
                               showCursor: true,
                               enableInteractiveSelection: true,
                               onTap: () {
-                                if (Platform.isAndroid) {
+                                if (isAndroid) {
                                   // Keep focus so user can use app keypad
                                   _focusNode.requestFocus();
                                 }
@@ -1120,7 +1120,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           ),
                           inlineCalcButton, //
                           inlineClearButton,
-                          if (Platform.isAndroid || Platform.isIOS) ...[
+                          if (isAndroid || isIOS) ...[
                             IconButton(
                               icon: const Icon(Icons.arrow_left),
                               tooltip: 'Move cursor left',

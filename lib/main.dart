@@ -1,16 +1,9 @@
-import 'dart:io';
-
 import 'package:expressions/expressions.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:rnd_pcalc_ng/calculator.dart';
-import 'package:rnd_pcalc_ng/settings_page.dart';
-import 'package:tinyexpr_plusplus_ffi/tinyexprpp_fii.dart';
-import 'package:ffi/ffi.dart' as ffi;
-import 'package:rnd_pcalc_ng/help_screen.dart';
-import 'package:flutter/services.dart';
+import 'package:rnd_pcalc_ng/platform_capabilities.dart';
+import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:rnd_pcalc_ng/format_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
@@ -48,10 +41,11 @@ Future<void> saveThemeMode(ThemeMode mode) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeTinyExpr();
   await loadThemeMode(); // <-- Load theme mode before runApp
 
   // Configure frameless desktop window and custom drag areas.
-  if (Platform.isLinux || Platform.isWindows) {
+  if (isLinux || isWindows) {
     await windowManager.ensureInitialized();
 
     const WindowOptions windowOptions = WindowOptions(
