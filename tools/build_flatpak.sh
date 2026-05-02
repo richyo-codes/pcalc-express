@@ -23,6 +23,20 @@ if ! command -v flutter >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v pkg-config >/dev/null 2>&1; then
+  echo "pkg-config not found. Install Flutter Linux build dependencies first." >&2
+  echo "Ubuntu/Debian: sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev" >&2
+  echo "Fedora: sudo dnf install -y clang cmake ninja-build pkgconf-pkg-config gtk3-devel xz-devel" >&2
+  exit 1
+fi
+
+if ! pkg-config --exists gtk+-3.0; then
+  echo "gtk+-3.0 development files not found." >&2
+  echo "Ubuntu/Debian: sudo apt-get install -y libgtk-3-dev" >&2
+  echo "Fedora: sudo dnf install -y gtk3-devel" >&2
+  exit 1
+fi
+
 flutter build linux --release
 
 if [[ ! -f "$ROOT_DIR/build/linux/x64/release/bundle/rnd_pcalc_ng" ]]; then
