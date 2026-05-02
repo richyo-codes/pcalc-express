@@ -307,10 +307,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           );
         });
       } else {
-        final errMsg = getLastErrorMessage();
+        final errMsg = getLastErrorMessage().trim();
+        final displayError = errMsg.isEmpty
+            ? "Expression evaluated to NaN"
+            : errMsg;
 
         setState(() {
-          decimalResult = errMsg;
+          decimalResult = displayError;
           hexResult = "";
           binaryResult = "";
           floatResult = "";
@@ -318,21 +321,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $errMsg')));
-
-        setState(() {
-          decimalResult = "Error";
-          hexResult = "Error";
-          binaryResult = "Error";
-          floatResult = "Error";
-        });
+        ).showSnackBar(SnackBar(content: Text('Error: $displayError')));
       }
     } catch (e) {
+      final displayError = e.toString();
       setState(() {
-        decimalResult = "Error";
-        hexResult = "Error";
-        binaryResult = "Error";
-        floatResult = "Error";
+        decimalResult = displayError;
+        hexResult = "";
+        binaryResult = "";
+        floatResult = "";
       });
     }
 
