@@ -139,7 +139,7 @@ bool FlutterWindow::OnCreate() {
         }
         if (method == "close") {
           if (handle != nullptr) {
-            PostMessage(handle, WM_CLOSE, 0, 0);
+            SendMessage(handle, WM_CLOSE, 0, 0);
           }
           result->Success();
           return;

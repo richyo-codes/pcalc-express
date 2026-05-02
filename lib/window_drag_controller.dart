@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rnd_pcalc_ng/platform_capabilities.dart';
 
 const double _chromeHeaderHeight = 32;
 const double _chromeControlButtonSize = 28;
@@ -13,9 +13,9 @@ class WindowChromeController {
     false,
   );
 
-  static bool get supportsLinuxSystemDecorations => Platform.isLinux;
+  static bool get supportsLinuxSystemDecorations => isLinux;
   static bool get useCustomWindowChrome =>
-      !(Platform.isLinux && useLinuxSystemDecorations.value);
+      !(isLinux && useLinuxSystemDecorations.value);
 
   static Future<void> setLinuxSystemDecorations(bool enabled) async {
     useLinuxSystemDecorations.value = enabled;
@@ -47,9 +47,9 @@ class WindowDragController {
   static const MethodChannel _channel = MethodChannel('app/window_drag');
   static final ValueNotifier<bool> isMaximized = ValueNotifier(false);
   static bool _initialWindowStateRequested = false;
+  static bool _closeRequested = false;
 
-  static bool get supportsWindowControls =>
-      Platform.isLinux || Platform.isWindows;
+  static bool get supportsWindowControls => isLinux || isWindows;
   static bool get _supportsDragging => supportsWindowControls;
 
   static Future<void> startDragging() async {
@@ -120,12 +120,14 @@ class WindowDragController {
   }
 
   static Future<void> close() async {
-    if (!supportsWindowControls) {
+    if (!supportsWindowControls || _closeRequested) {
       return;
     }
+    _closeRequested = true;
     try {
       await _channel.invokeMethod('close');
     } catch (_) {
+      _closeRequested = false;
       // Ignore failures; window controls are best-effort.
     }
   }
