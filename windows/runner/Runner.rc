@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "rnd_pcalc_ng" "\0"
+            VALUE "FileDescription", "pcalc express" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "rnd_pcalc_ng" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "rnd_pcalc_ng.exe" "\0"
-            VALUE "ProductName", "rnd_pcalc_ng" "\0"
+            VALUE "ProductName", "pcalc express" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -157,7 +157,7 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  gtk_window_set_title(window, "Programmer Calculator");
+  gtk_window_set_title(window, "pcalc express");
   apply_window_decorations(window, FALSE);
   gtk_window_set_default_size(window, 1280, 720);
 

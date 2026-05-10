@@ -1,11 +1,11 @@
 {
-    "name": "rnd_pcalc_ng",
-    "short_name": "rnd_pcalc_ng",
+    "name": "pcalc express",
+    "short_name": "pcalc express",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Programmer-focused expression calculator.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

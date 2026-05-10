@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rnd_pcalc_ng/app_brand.dart';
 import 'package:rnd_pcalc_ng/platform_capabilities.dart';
 import 'package:rnd_pcalc_ng/window_drag_controller.dart';
 import 'package:rnd_pcalc_ng/settings_page.dart';
@@ -1210,7 +1211,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => HelpScreen()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  HelpScreen(themeColor: widget.themeColor ?? Colors.red),
+            ),
           );
         },
       ),
@@ -1222,6 +1226,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => SettingsPage(
+                themeColor: widget.themeColor ?? Colors.red,
                 //onThemeColorChanged: widget.onThemeColorChanged,
                 //currentThemeColor: widget.themeColor ?? Colors.red,
               ),
@@ -1240,7 +1245,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       child: Scaffold(
         appBar: WindowChromeHeader(
           title: const Text(
-            "Programmer Calculator",
+            appTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

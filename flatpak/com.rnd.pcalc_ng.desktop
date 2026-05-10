@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=RND PCalc
-Comment=Programmer calculator built with Flutter
+Name=pcalc express
+Comment=Programmer-focused expression calculator
 Exec=run-rnd-pcalc-ng
 Icon=com.rnd.pcalc_ng
 Terminal=false

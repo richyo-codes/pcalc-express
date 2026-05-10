@@ -1,5 +1,6 @@
 import 'package:expressions/expressions.dart';
 import 'package:flutter/material.dart';
+import 'package:rnd_pcalc_ng/app_brand.dart';
 import 'package:rnd_pcalc_ng/calculator.dart';
 import 'package:rnd_pcalc_ng/platform_capabilities.dart';
 import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
@@ -53,6 +54,7 @@ void main() async {
       center: true,
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
+      title: appTitle,
       titleBarStyle: TitleBarStyle.hidden,
     );
 
@@ -67,6 +69,7 @@ void main() async {
     ValueListenableBuilder<ThemeMode>(
       valueListenable: themeModeNotifier,
       builder: (context, mode, _) => MaterialApp(
+        title: appTitle,
         theme: ThemeData.light(),
         darkTheme: ThemeData.dark(),
         themeMode: mode,

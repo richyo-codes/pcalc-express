@@ -381,10 +381,19 @@ class WindowChromeHeader extends StatelessWidget
                   ),
                   if (actions.isNotEmpty) ...[
                     const SizedBox(width: 4),
-                    Row(mainAxisSize: MainAxisSize.min, children: actions),
+                    IconTheme(
+                      data: IconThemeData(color: onSurface),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: actions,
+                      ),
+                    ),
                   ],
                   if (actions.isNotEmpty) const SizedBox(width: 4),
-                  const WindowControlButtons(),
+                  IconTheme(
+                    data: IconThemeData(color: onSurface),
+                    child: const WindowControlButtons(),
+                  ),
                 ],
               ),
             ),
@@ -446,7 +455,6 @@ class _WindowControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Tooltip(
       message: tooltip,
       child: IconButton(
@@ -459,7 +467,6 @@ class _WindowControlButton extends StatelessWidget {
         ),
         visualDensity: VisualDensity.compact,
         splashRadius: 16,
-        color: theme.colorScheme.onSurface,
       ),
     );
   }
@@ -479,7 +486,6 @@ class WindowChromeActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Tooltip(
       message: tooltip,
       child: IconButton(
@@ -492,7 +498,6 @@ class WindowChromeActionButton extends StatelessWidget {
         ),
         visualDensity: VisualDensity.compact,
         splashRadius: 16,
-        color: theme.colorScheme.onSurface,
       ),
     );
   }

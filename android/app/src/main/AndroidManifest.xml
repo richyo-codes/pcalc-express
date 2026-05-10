@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="rnd_pcalc_ng"
+        android:label="pcalc express"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
