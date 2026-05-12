@@ -182,7 +182,6 @@ jobs:
         run: flutter build windows --release
 
       - name: Upload Windows artifact
-        if: github.event_name != 'pull_request'
         uses: richnetdesign/git-artifact-upload@v2
         with:
           name: rnd-pcalc-ng-windows-bundle
@@ -279,5 +278,45 @@ jobs:
           filename: rnd-pcalc-ng-flatpak
           version: ${{ steps.version.outputs.semver }}
           path: ${{ runner.temp }}/rnd-pcalc-ng-flatpak/com.rnd.pcalc_ng.flatpak
+          append-max-detail-suffix: true
+          retention-days: 7
+
+  web:
+    name: Web WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        uses: ./.github/actions/compute-version
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable web
+        run: flutter config --enable-web
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Web WASM release
+        run: flutter build web --wasm --release --no-pub
+
+      - name: Upload Web WASM artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: rnd-pcalc-ng-web-wasm
+          filename: rnd-pcalc-ng-web-wasm
+          version: ${{ steps.version.outputs.semver }}
+          path: build/web/
           append-max-detail-suffix: true
           retention-days: 7
