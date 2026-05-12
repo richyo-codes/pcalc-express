@@ -2,17 +2,29 @@
 
 ## App ID
 
-- `com.rnd.pcalc_ng`
+- `com.richnetdesign.pcalcexpress`
 
 ## Files
 
-- Manifest: `flatpak/com.rnd.pcalc_ng.yml`
-- Desktop entry: `flatpak/com.rnd.pcalc_ng.desktop`
-- Metainfo: `flatpak/com.rnd.pcalc_ng.metainfo.xml`
+- Manifest: `flatpak/com.richnetdesign.pcalcexpress.yml`
+- Desktop entry: `flatpak/com.richnetdesign.pcalcexpress.desktop`
+- Metainfo: `flatpak/com.richnetdesign.pcalcexpress.metainfo.xml`
 - Host build script: `tools/build_flatpak.sh`
 - Container build script: `tools/build_flatpak_container.sh`
 
 ## Build on host
+
+Install the Flutter Linux and Flatpak build dependencies first:
+
+```bash
+sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa libsecret-1-dev libssl-dev flatpak flatpak-builder dbus-user-session
+```
+
+On Fedora:
+
+```bash
+sudo dnf install -y clang cmake ninja-build pkgconf-pkg-config gtk3-devel xz-devel libstdc++-devel lld flatpak flatpak-builder
+```
 
 ```bash
 cd /home/ry/code_flutter/rnd_pcalc_ng_public
@@ -23,7 +35,7 @@ The script:
 
 1. Builds Flutter Linux release bundle
 2. Runs `flatpak-builder`
-3. Creates bundle at `build/com.rnd.pcalc_ng.flatpak`
+3. Creates bundle at `build/com.richnetdesign.pcalcexpress.flatpak`
 
 ## Build in container
 
@@ -39,8 +51,8 @@ Podman or Docker.
 ## Install & run
 
 ```bash
-flatpak install --user --reinstall ./build/com.rnd.pcalc_ng.flatpak
-flatpak run com.rnd.pcalc_ng
+flatpak install --user --reinstall ./build/com.richnetdesign.pcalcexpress.flatpak
+flatpak run com.richnetdesign.pcalcexpress
 ```
 
 ## Notes

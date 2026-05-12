@@ -2,16 +2,16 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-MANIFEST="$ROOT_DIR/flatpak/com.rnd.pcalc_ng.yml"
+APP_ID="com.richnetdesign.pcalcexpress"
+MANIFEST="$ROOT_DIR/flatpak/$APP_ID.yml"
 BUILD_DIR="$ROOT_DIR/build/flatpak"
 REPO_DIR="$ROOT_DIR/build/flatpak-repo"
-BUNDLE_PATH="$ROOT_DIR/build/com.rnd.pcalc_ng.flatpak"
-APP_ID="com.rnd.pcalc_ng"
+BUNDLE_PATH="$ROOT_DIR/build/$APP_ID.flatpak"
 CONTAINER_ROOT="/src"
-CONTAINER_MANIFEST="$CONTAINER_ROOT/flatpak/com.rnd.pcalc_ng.yml"
+CONTAINER_MANIFEST="$CONTAINER_ROOT/flatpak/$APP_ID.yml"
 CONTAINER_BUILD_DIR="$CONTAINER_ROOT/build/flatpak"
 CONTAINER_REPO_DIR="$CONTAINER_ROOT/build/flatpak-repo"
-CONTAINER_BUNDLE_PATH="$CONTAINER_ROOT/build/com.rnd.pcalc_ng.flatpak"
+CONTAINER_BUNDLE_PATH="$CONTAINER_ROOT/build/$APP_ID.flatpak"
 
 if [[ ! -f "$MANIFEST" ]]; then
   echo "Flatpak manifest not found: $MANIFEST" >&2

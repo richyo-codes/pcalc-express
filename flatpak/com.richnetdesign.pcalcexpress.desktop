@@ -2,8 +2,9 @@
 Name=pcalc express
 Comment=Programmer-focused expression calculator
 Exec=run-rnd-pcalc-ng
-Icon=com.rnd.pcalc_ng
+Icon=com.richnetdesign.pcalcexpress
 Terminal=false
 Type=Application
 Categories=Utility;Calculator;
 StartupNotify=true
+StartupWMClass=com.richnetdesign.pcalcexpress

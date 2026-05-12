@@ -158,6 +158,7 @@ static void my_application_activate(GApplication* application) {
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
   gtk_window_set_title(window, "pcalc express");
+  gtk_window_set_icon_name(window, APPLICATION_ID);
   apply_window_decorations(window, FALSE);
   gtk_window_set_default_size(window, 1280, 720);
 

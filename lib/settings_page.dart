@@ -35,30 +35,23 @@ class _SettingsPageState extends State<SettingsPage> {
     return FramelessWindowResizeFrame(
       child: Scaffold(
         appBar: WindowChromeHeader(
-          title: const Text(
-            '$appTitle / Settings',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          title: const AppTitleLabel(section: 'Settings'),
           backgroundColor: widget.themeColor,
           foregroundColor: foregroundColor,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, size: 18),
-            tooltip: 'Back to calculator',
-            color: foregroundColor,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              Navigator.pop(context, _showCalcButtonsDesktop);
-            },
-          ),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              TextButton.icon(
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Calculator'),
+                onPressed: () {
+                  Navigator.pop(context, _showCalcButtonsDesktop);
+                },
+              ),
+              SizedBox(height: 8),
               Text(
                 "Theme",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

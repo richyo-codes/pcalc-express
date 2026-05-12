@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-MANIFEST="$ROOT_DIR/flatpak/com.rnd.pcalc_ng.yml"
+APP_ID="com.richnetdesign.pcalcexpress"
+MANIFEST="$ROOT_DIR/flatpak/$APP_ID.yml"
 DEFAULT_OUT_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/rnd-pcalc-ng/flatpak"
 TMP_OUT_DIR="/tmp/rnd-pcalc-ng-flatpak"
 
@@ -46,7 +47,7 @@ mkdir -p "$OUT_DIR"
 OUT_DIR=$(cd "$OUT_DIR" && pwd)
 BUILD_DIR="$OUT_DIR/flatpak"
 REPO_DIR="$OUT_DIR/flatpak-repo"
-BUNDLE_PATH="$OUT_DIR/com.rnd.pcalc_ng.flatpak"
+BUNDLE_PATH="$OUT_DIR/$APP_ID.flatpak"
 
 if [[ ! -f "$MANIFEST" ]]; then
   echo "Flatpak manifest not found: $MANIFEST" >&2
@@ -86,6 +87,6 @@ flatpak install --user -y --noninteractive flathub \
 
 flatpak-builder --force-clean --install-deps-from=flathub "$BUILD_DIR" "$MANIFEST"
 flatpak-builder --force-clean --repo="$REPO_DIR" "$BUILD_DIR" "$MANIFEST"
-flatpak build-bundle "$REPO_DIR" "$BUNDLE_PATH" com.rnd.pcalc_ng
+flatpak build-bundle "$REPO_DIR" "$BUNDLE_PATH" "$APP_ID"
 
 echo "Flatpak bundle created: $BUNDLE_PATH"

@@ -2,11 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-MANIFEST="$ROOT_DIR/flatpak/com.rnd.pcalc_ng.yml"
+APP_ID="com.richnetdesign.pcalcexpress"
+MANIFEST="$ROOT_DIR/flatpak/$APP_ID.yml"
 BUILD_DIR="$ROOT_DIR/build/flatpak"
 REPO_DIR="$ROOT_DIR/build/flatpak-repo"
-BUNDLE_PATH="$ROOT_DIR/build/com.rnd.pcalc_ng.flatpak"
-APP_ID="com.rnd.pcalc_ng"
+BUNDLE_PATH="$ROOT_DIR/build/$APP_ID.flatpak"
 FLATPAK_BUILDER_ARGS=(--disable-rofiles-fuse --force-clean)
 
 if ! command -v flatpak-builder >/dev/null 2>&1; then

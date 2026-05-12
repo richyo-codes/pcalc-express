@@ -1244,11 +1244,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return FramelessWindowResizeFrame(
       child: Scaffold(
         appBar: WindowChromeHeader(
-          title: const Text(
-            appTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          title: const AppTitleLabel(),
           backgroundColor: widget.themeColor ?? Colors.red,
           foregroundColor:
               ThemeData.estimateBrightnessForColor(
