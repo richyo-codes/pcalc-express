@@ -3,14 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:rnd_pcalc_ng/app_brand.dart';
-import 'package:rnd_pcalc_ng/platform_capabilities.dart';
-import 'package:rnd_pcalc_ng/window_drag_controller.dart';
-import 'package:rnd_pcalc_ng/settings_page.dart';
+import 'package:pcalc_express/app_brand.dart';
+import 'package:pcalc_express/platform_capabilities.dart';
+import 'package:pcalc_express/window_drag_controller.dart';
+import 'package:pcalc_express/settings_page.dart';
 
-import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
-import 'package:rnd_pcalc_ng/help_screen.dart';
-import 'package:rnd_pcalc_ng/format_helper.dart';
+import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
+import 'package:pcalc_express/help_screen.dart';
+import 'package:pcalc_express/format_helper.dart';
 
 class AppScrollBehavior extends MaterialScrollBehavior {
   // Enable drag with mouse/trackpad on desktop (touch already works on mobile)
@@ -1222,14 +1222,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         icon: Icons.settings,
         tooltip: 'Settings',
         onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SettingsPage(
-                themeColor: widget.themeColor ?? Colors.red,
-                //onThemeColorChanged: widget.onThemeColorChanged,
-                //currentThemeColor: widget.themeColor ?? Colors.red,
-              ),
+          final result = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => SettingsDialog(
+              themeColor: widget.themeColor ?? Colors.red,
+              showCalcButtonsDesktop: showCalcButtons,
             ),
           );
           if (result is bool) {

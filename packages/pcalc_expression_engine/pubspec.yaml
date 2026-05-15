@@ -1,0 +1,24 @@
+name: pcalc_expression_engine
+description: Backend orchestration for pcalc express expression evaluation.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  tinyexpr_plusplus_ffi:
+    git:
+      url: https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git
+      ref: feature/platform-backends
+  meta: ^1.16.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:rnd_pcalc_ng/platform_capabilities.dart';
+import 'package:pcalc_express/platform_capabilities.dart';
 
 const double _chromeHeaderHeight = 32;
 const double _chromeControlButtonSize = 28;

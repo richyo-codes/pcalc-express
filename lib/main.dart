@@ -1,48 +1,24 @@
 import 'package:expressions/expressions.dart';
 import 'package:flutter/material.dart';
-import 'package:rnd_pcalc_ng/app_brand.dart';
-import 'package:rnd_pcalc_ng/calculator.dart';
-import 'package:rnd_pcalc_ng/platform_capabilities.dart';
-import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
+import 'package:pcalc_express/app_brand.dart';
+import 'package:pcalc_express/backend_preferences.dart';
+import 'package:pcalc_express/calculator.dart';
+import 'package:pcalc_express/platform_capabilities.dart';
+import 'package:pcalc_express/theme_preferences.dart';
+import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
-
-Future<void> loadThemeMode() async {
-  final prefs = await SharedPreferences.getInstance();
-  final modeString = prefs.getString('themeMode') ?? 'system';
-  switch (modeString) {
-    case 'light':
-      themeModeNotifier.value = ThemeMode.light;
-      break;
-    case 'dark':
-      themeModeNotifier.value = ThemeMode.dark;
-      break;
-    default:
-      themeModeNotifier.value = ThemeMode.system;
-  }
-}
-
-Future<void> saveThemeMode(ThemeMode mode) async {
-  final prefs = await SharedPreferences.getInstance();
-  String modeString;
-  switch (mode) {
-    case ThemeMode.light:
-      modeString = 'light';
-      break;
-    case ThemeMode.dark:
-      modeString = 'dark';
-      break;
-    default:
-      modeString = 'system';
-  }
-  await prefs.setString('themeMode', modeString);
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeTinyExpr();
+  final backendPreference = await loadBackendPreference();
+  setBackendPreference(backendPreference);
+  try {
+    await initializeTinyExpr();
+  } catch (_) {
+    setBackendPreference(null);
+    await saveBackendPreference(null);
+    await initializeTinyExpr();
+  }
   await loadThemeMode(); // <-- Load theme mode before runApp
 
   // Configure frameless desktop window and custom drag areas.

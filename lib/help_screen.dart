@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:rnd_pcalc_ng/app_brand.dart';
-import 'package:rnd_pcalc_ng/window_drag_controller.dart';
+import 'package:pcalc_express/app_brand.dart';
+import 'package:pcalc_express/window_drag_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HelpScreen extends StatelessWidget {

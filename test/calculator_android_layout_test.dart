@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rnd_pcalc_ng/calculator.dart';
+import 'package:pcalc_express/calculator.dart';
 
 Future<void> _pumpCalculatorHarness(
   WidgetTester tester, {

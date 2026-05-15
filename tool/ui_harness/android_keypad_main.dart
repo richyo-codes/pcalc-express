@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:rnd_pcalc_ng/calculator.dart';
-import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart';
+import 'package:pcalc_express/calculator.dart';
+import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
