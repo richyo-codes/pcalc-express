@@ -4,9 +4,11 @@ export 'src/backend.dart'
         BackendKind,
         ExpressionBackend,
         ExpressionEngineInfo,
+        backendDebugLoggingEnabled,
         getLastErrorMessage,
         initializeTinyExpr,
         selectedBackendInfo,
-        setBackendPreference;
+        setBackendPreference,
+        setBackendDebugLoggingEnabled;
 export 'src/backend_probe.dart' show canUseCling, canUseRoot;
 export 'src/engine.dart' show evaluateExpression;

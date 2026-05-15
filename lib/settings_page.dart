@@ -23,6 +23,7 @@ class SettingsDialog extends StatefulWidget {
 class _SettingsDialogState extends State<SettingsDialog> {
   ThemeMode _themeMode = themeModeNotifier.value;
   late bool _showCalcButtonsDesktop;
+  bool _backendDebugLoggingEnabled = false;
   BackendKind? _backendPreference;
   bool _backendLoading = true;
   bool _backendBusy = false;
@@ -32,7 +33,19 @@ class _SettingsDialogState extends State<SettingsDialog> {
   void initState() {
     super.initState();
     _showCalcButtonsDesktop = widget.showCalcButtonsDesktop;
+    _loadBackendDebugLoggingEnabled();
     _loadBackendPreference();
+  }
+
+  Future<void> _loadBackendDebugLoggingEnabled() async {
+    final enabled = await loadBackendDebugLoggingEnabled();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _backendDebugLoggingEnabled = enabled;
+      setBackendDebugLoggingEnabled(enabled);
+    });
   }
 
   Future<void> _loadBackendPreference() async {
@@ -90,6 +103,14 @@ class _SettingsDialogState extends State<SettingsDialog> {
       themeModeNotifier.value = mode;
       saveThemeMode(mode);
     });
+  }
+
+  Future<void> _setBackendDebugLoggingEnabled(bool enabled) async {
+    setState(() {
+      _backendDebugLoggingEnabled = enabled;
+      setBackendDebugLoggingEnabled(enabled);
+    });
+    await saveBackendDebugLoggingEnabled(enabled);
   }
 
   @override
@@ -171,6 +192,18 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         setState(() {
                           _showCalcButtonsDesktop = value;
                         });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Debug backend command logging'),
+                      subtitle: const Text(
+                        'Print ROOT/Cling command lines and results to the console.',
+                      ),
+                      value: _backendDebugLoggingEnabled,
+                      onChanged: (value) {
+                        unawaited(_setBackendDebugLoggingEnabled(value));
                       },
                     ),
                     const SizedBox(height: 12),

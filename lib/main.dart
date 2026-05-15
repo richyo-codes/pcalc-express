@@ -11,7 +11,9 @@ import 'package:window_manager/window_manager.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final backendPreference = await loadBackendPreference();
+  final backendDebugLoggingEnabled = await loadBackendDebugLoggingEnabled();
   setBackendPreference(backendPreference);
+  setBackendDebugLoggingEnabled(backendDebugLoggingEnabled);
   try {
     await initializeTinyExpr();
   } catch (_) {

@@ -86,10 +86,12 @@ final class ClingReplBackend implements ExpressionBackend {
         'cling' => <String>['-b', '-q', '-l', '-e', script],
         _ => <String>['-b', '-q', '-l', '-e', script],
       };
+      _logInvocation(command, args);
       final result = Process.runSync(command, args);
       final stdoutText = (result.stdout as Object?)?.toString() ?? '';
       final stderrText = (result.stderr as Object?)?.toString() ?? '';
       final combined = '$stdoutText\n$stderrText';
+      _logResult(command, result.exitCode, stdoutText, stderrText);
       final parsed = _parseResult(combined);
       if (parsed != null) {
         _lastErrorMessage = '';
@@ -195,5 +197,44 @@ pcalc_eval();
       return "''";
     }
     return "'${input.replaceAll("'", r"'\''")}'";
+  }
+
+  void _logInvocation(String command, List<String> args) {
+    if (!backendDebugLoggingEnabled) {
+      return;
+    }
+    final rendered = _renderCommandLine(command, args);
+    stdout.writeln('[pcalc express][backend] $rendered');
+  }
+
+  void _logResult(
+    String command,
+    int exitCode,
+    String stdoutText,
+    String stderrText,
+  ) {
+    if (!backendDebugLoggingEnabled) {
+      return;
+    }
+    stdout.writeln('[pcalc express][backend] $command exited with $exitCode');
+    if (stdoutText.trim().isNotEmpty) {
+      stdout.writeln('[pcalc express][backend][stdout]');
+      stdout.write(stdoutText);
+      if (!stdoutText.endsWith('\n')) {
+        stdout.writeln();
+      }
+    }
+    if (stderrText.trim().isNotEmpty) {
+      stdout.writeln('[pcalc express][backend][stderr]');
+      stdout.write(stderrText);
+      if (!stderrText.endsWith('\n')) {
+        stdout.writeln();
+      }
+    }
+  }
+
+  String _renderCommandLine(String command, List<String> args) {
+    final renderedArgs = args.map(_escapeForShell).join(' ');
+    return [command, renderedArgs].join(' ').trimRight();
   }
 }

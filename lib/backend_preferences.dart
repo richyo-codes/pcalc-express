@@ -3,6 +3,7 @@ import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String backendPreferenceKey = 'backendPreference';
+const String backendDebugLoggingKey = 'backendDebugLogging';
 
 Future<BackendKind?> loadBackendPreference() async {
   final prefs = await SharedPreferences.getInstance();
@@ -54,4 +55,14 @@ bool backendPreferenceIsAvailable(BackendKind kind) {
     BackendKind.clingRepl => canUseCling,
     BackendKind.pureDart => false,
   };
+}
+
+Future<bool> loadBackendDebugLoggingEnabled() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(backendDebugLoggingKey) ?? false;
+}
+
+Future<void> saveBackendDebugLoggingEnabled(bool enabled) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(backendDebugLoggingKey, enabled);
 }

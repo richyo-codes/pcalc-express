@@ -94,6 +94,7 @@ final class _PureDartBackendPlaceholder implements ExpressionBackend {
 
 ExpressionBackend? _selectedBackend;
 BackendKind? _preferredBackend;
+bool _debugLoggingEnabled = false;
 
 BackendCapabilities get _capabilities => BackendCapabilities(
   isWeb: kIsWeb,
@@ -149,3 +150,9 @@ void setBackendPreference(BackendKind? kind) {
   _preferredBackend = kind;
   _selectedBackend = null;
 }
+
+void setBackendDebugLoggingEnabled(bool enabled) {
+  _debugLoggingEnabled = enabled;
+}
+
+bool get backendDebugLoggingEnabled => _debugLoggingEnabled;
