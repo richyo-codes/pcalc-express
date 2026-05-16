@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:tinyexpr_plusplus_ffi/tinyexpr_plusplus_ffi.dart' as tinyexpr;
 
+import 'backend_cling.dart';
 import 'backend_probe.dart';
 import 'backend_repl.dart';
 
-enum BackendKind { tinyExprFfi, clingRepl, pureDart }
+enum BackendKind { tinyExprFfi, clingRepl, rootFormula, clingCxx, pureDart }
 
 class BackendCapabilities {
   const BackendCapabilities({
@@ -17,7 +18,9 @@ class BackendCapabilities {
   final bool hasRoot;
   final bool hasCling;
 
-  bool get supportsCling => !isWeb && hasRoot;
+  bool get supportsRootFormula => !isWeb && hasRoot;
+  bool get supportsClingCxx => !isWeb && (hasRoot || hasCling);
+  bool get supportsCling => supportsClingCxx;
   bool get prefersPureDart => isWeb;
 }
 
@@ -60,7 +63,7 @@ final class TinyExprBackend implements ExpressionBackend {
   ExpressionEngineInfo get info => ExpressionEngineInfo(
     kind: BackendKind.tinyExprFfi,
     name: 'TinyExpr++ FFI',
-    description: capabilities.supportsCling
+    description: capabilities.supportsRootFormula
         ? 'TinyExpr++ FFI with Linux ROOT formula backend available on PATH.'
         : 'TinyExpr++ FFI native backend.',
     capabilities: capabilities,
@@ -106,7 +109,9 @@ ExpressionBackend _createBackend(BackendKind kind) {
   final capabilities = _capabilities;
   return switch (kind) {
     BackendKind.tinyExprFfi => TinyExprBackend(capabilities: capabilities),
-    BackendKind.clingRepl => ClingReplBackend(capabilities: capabilities),
+    BackendKind.clingRepl => RootFormulaBackend(capabilities: capabilities),
+    BackendKind.rootFormula => RootFormulaBackend(capabilities: capabilities),
+    BackendKind.clingCxx => ClingCxxBackend(capabilities: capabilities),
     BackendKind.pureDart => _PureDartBackendPlaceholder(
       capabilities: capabilities,
     ),

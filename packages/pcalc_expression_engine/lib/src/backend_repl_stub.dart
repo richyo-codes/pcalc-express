@@ -1,7 +1,7 @@
 import 'backend.dart';
 
-final class ClingReplBackend implements ExpressionBackend {
-  ClingReplBackend({required this.capabilities});
+final class RootFormulaBackend implements ExpressionBackend {
+  RootFormulaBackend({required this.capabilities});
 
   final BackendCapabilities capabilities;
 
@@ -25,7 +25,7 @@ final class ClingReplBackend implements ExpressionBackend {
 
   @override
   ExpressionEngineInfo get info => ExpressionEngineInfo(
-    kind: BackendKind.clingRepl,
+    kind: BackendKind.rootFormula,
     name: 'ROOT formula backend',
     description: 'Reserved for a ROOT subprocess evaluator backend.',
     capabilities: capabilities,

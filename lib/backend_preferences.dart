@@ -12,6 +12,10 @@ Future<BackendKind?> loadBackendPreference() async {
     return null;
   }
 
+  if (rawValue == 'clingRepl') {
+    return BackendKind.rootFormula;
+  }
+
   for (final kind in BackendKind.values) {
     if (kind.name == rawValue) {
       return kind;
@@ -35,8 +39,10 @@ String backendPreferenceLabel(BackendKind? kind) {
   return switch (kind) {
     null => 'Auto',
     BackendKind.tinyExprFfi => 'TinyExpr++ FFI',
-    BackendKind.clingRepl => 'ROOT formula',
+    BackendKind.rootFormula => 'ROOT formula',
+    BackendKind.clingCxx => 'Cling C++',
     BackendKind.pureDart => 'Pure Dart',
+    BackendKind.clingRepl => 'ROOT formula',
   };
 }
 
@@ -44,18 +50,29 @@ String backendPreferenceHelpText(BackendKind? kind) {
   return switch (kind) {
     null => 'Use the best backend for the current platform.',
     BackendKind.tinyExprFfi => 'Use the native TinyExpr++ FFI backend.',
-    BackendKind.clingRepl => 'Use ROOT TFormula from PATH on Linux.',
+    BackendKind.rootFormula => 'Use ROOT TFormula from PATH on Linux.',
+    BackendKind.clingCxx => 'Use ROOT/Cling C++ syntax, including casts.',
     BackendKind.pureDart => 'Use the browser-safe pure Dart fallback.',
+    BackendKind.clingRepl => 'Legacy ROOT formula backend mapping.',
   };
 }
 
 bool backendPreferenceIsAvailable(BackendKind kind) {
   return switch (kind) {
     BackendKind.tinyExprFfi => !kIsWeb,
-    BackendKind.clingRepl => canUseRoot,
+    BackendKind.rootFormula => canUseRoot,
+    BackendKind.clingCxx => canUseCling,
     BackendKind.pureDart => false,
+    BackendKind.clingRepl => false,
   };
 }
+
+List<BackendKind> get backendPreferenceOptions => const [
+  BackendKind.tinyExprFfi,
+  BackendKind.rootFormula,
+  BackendKind.clingCxx,
+  BackendKind.pureDart,
+];
 
 Future<bool> loadBackendDebugLoggingEnabled() async {
   final prefs = await SharedPreferences.getInstance();

@@ -199,7 +199,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Debug backend command logging'),
                       subtitle: const Text(
-                        'Print ROOT formula command lines and results to the console.',
+                        'Print backend command lines and results to the console.',
                       ),
                       value: _backendDebugLoggingEnabled,
                       onChanged: (value) {
@@ -230,7 +230,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                             value: null,
                             child: Text('Auto'),
                           ),
-                          ...BackendKind.values.map(
+                          ...backendPreferenceOptions.map(
                             (kind) => DropdownMenuItem<BackendKind?>(
                               enabled: backendPreferenceIsAvailable(kind),
                               value: kind,

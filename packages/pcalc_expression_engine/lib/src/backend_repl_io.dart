@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'backend.dart';
 
-final class ClingReplBackend implements ExpressionBackend {
-  ClingReplBackend({required this.capabilities});
+final class RootFormulaBackend implements ExpressionBackend {
+  RootFormulaBackend({required this.capabilities});
 
   static const String _resultPrefix = '__PCALC_RESULT__=';
   static const String _errorPrefix = '__PCALC_ERROR__=';
@@ -36,7 +36,7 @@ final class ClingReplBackend implements ExpressionBackend {
 
   @override
   ExpressionEngineInfo get info => ExpressionEngineInfo(
-    kind: BackendKind.clingRepl,
+    kind: BackendKind.rootFormula,
     name: 'ROOT formula backend',
     description: capabilities.hasRoot
         ? 'Uses ROOT TFormula through a subprocess for formula-only math.'

@@ -20,15 +20,30 @@ void main() {
     }
 
     addTearDown(() => setBackendPreference(null));
-    setBackendPreference(BackendKind.clingRepl);
+    setBackendPreference(BackendKind.rootFormula);
 
     await initializeTinyExpr();
 
     final info = selectedBackendInfo();
-    expect(info.kind, BackendKind.clingRepl);
+    expect(info.kind, BackendKind.rootFormula);
 
     final result = evaluateExpression('1 + 2 * 3');
     expect(result, closeTo(7.0, 1e-9));
     expect(getLastErrorMessage(), isEmpty);
+  });
+
+  test('can use the Cling C++ backend when available', () async {
+    if (!canUseCling) {
+      return;
+    }
+
+    addTearDown(() => setBackendPreference(null));
+    setBackendPreference(BackendKind.clingCxx);
+
+    await initializeTinyExpr();
+
+    final info = selectedBackendInfo();
+    expect(info.kind, BackendKind.clingCxx);
+    expect(evaluateExpression('(char)1'), isNotNaN);
   });
 }
