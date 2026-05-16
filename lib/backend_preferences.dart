@@ -35,7 +35,7 @@ String backendPreferenceLabel(BackendKind? kind) {
   return switch (kind) {
     null => 'Auto',
     BackendKind.tinyExprFfi => 'TinyExpr++ FFI',
-    BackendKind.clingRepl => 'ROOT subprocess',
+    BackendKind.clingRepl => 'ROOT formula',
     BackendKind.pureDart => 'Pure Dart',
   };
 }
@@ -44,7 +44,7 @@ String backendPreferenceHelpText(BackendKind? kind) {
   return switch (kind) {
     null => 'Use the best backend for the current platform.',
     BackendKind.tinyExprFfi => 'Use the native TinyExpr++ FFI backend.',
-    BackendKind.clingRepl => 'Use ROOT or Cling from PATH on Linux.',
+    BackendKind.clingRepl => 'Use ROOT TFormula from PATH on Linux.',
     BackendKind.pureDart => 'Use the browser-safe pure Dart fallback.',
   };
 }
@@ -52,7 +52,7 @@ String backendPreferenceHelpText(BackendKind? kind) {
 bool backendPreferenceIsAvailable(BackendKind kind) {
   return switch (kind) {
     BackendKind.tinyExprFfi => !kIsWeb,
-    BackendKind.clingRepl => canUseCling,
+    BackendKind.clingRepl => canUseRoot,
     BackendKind.pureDart => false,
   };
 }

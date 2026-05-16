@@ -17,7 +17,7 @@ class BackendCapabilities {
   final bool hasRoot;
   final bool hasCling;
 
-  bool get supportsCling => !isWeb && (hasRoot || hasCling);
+  bool get supportsCling => !isWeb && hasRoot;
   bool get prefersPureDart => isWeb;
 }
 
@@ -61,7 +61,7 @@ final class TinyExprBackend implements ExpressionBackend {
     kind: BackendKind.tinyExprFfi,
     name: 'TinyExpr++ FFI',
     description: capabilities.supportsCling
-        ? 'TinyExpr++ FFI with Linux ROOT/Cling available on PATH.'
+        ? 'TinyExpr++ FFI with Linux ROOT formula backend available on PATH.'
         : 'TinyExpr++ FFI native backend.',
     capabilities: capabilities,
   );

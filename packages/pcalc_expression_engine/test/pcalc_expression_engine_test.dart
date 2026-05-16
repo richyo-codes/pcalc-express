@@ -14,7 +14,7 @@ void main() {
     expect(preferredInfo.name, isNotEmpty);
   });
 
-  test('can use the ROOT subprocess backend when available', () async {
+  test('can use the ROOT formula backend when available', () async {
     if (!canUseRoot) {
       return;
     }

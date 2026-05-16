@@ -10,26 +10,44 @@ final class ClingReplBackend implements ExpressionBackend {
 
   final BackendCapabilities capabilities;
   String _lastErrorMessage = '';
+  String? _command;
 
   @override
   Future<void> initialize() async {
-    if (!capabilities.hasRoot) {
-      throw UnsupportedError('ROOT is not available on this platform.');
+    if (!capabilities.supportsCling) {
+      throw UnsupportedError(
+        'ROOT/Cling backend is not available on this platform.',
+      );
     }
 
-    final result = _evaluateFormula('1 + 1');
-    if (result.isNaN) {
+    final command = _resolveCommand();
+    if (command == null) {
+      throw StateError('ROOT is not available on PATH.');
+    }
+
+    _command = command;
+    final probeResult = _evaluateViaRoot('1 + 1');
+    if (probeResult.isNaN) {
       final message = _lastErrorMessage;
       throw StateError(
         message.isEmpty
-            ? 'ROOT formula backend failed its startup probe.'
+            ? 'ROOT/Cling backend failed its startup probe.'
             : message,
       );
     }
   }
 
   @override
-  double evaluate(String input) => _evaluateFormula(input);
+  double evaluate(String input) {
+    if (_command == null) {
+      _command = _resolveCommand();
+      if (_command == null) {
+        _lastErrorMessage = 'ROOT is not available on PATH.';
+        return double.nan;
+      }
+    }
+    return _evaluateViaRoot(input);
+  }
 
   @override
   String getLastErrorMessage() => _lastErrorMessage;
@@ -38,30 +56,42 @@ final class ClingReplBackend implements ExpressionBackend {
   ExpressionEngineInfo get info => ExpressionEngineInfo(
     kind: BackendKind.clingRepl,
     name: 'ROOT formula backend',
-    description: capabilities.hasRoot
-        ? 'Uses ROOT TFormula through a subprocess for formula-only math.'
-        : 'ROOT formula backend is unavailable on this platform.',
+    description: capabilities.supportsCling
+        ? 'Uses ROOT subprocess evaluation as an exploratory Linux backend.'
+        : 'ROOT subprocess backend is unavailable on this platform.',
     capabilities: capabilities,
   );
 
-  double _evaluateFormula(String input) {
-    final command = _resolveRootCommand();
+  String? _resolveCommand() {
+    if (_commandExists('root')) {
+      return 'root';
+    }
+    if (_commandExists('cling')) {
+      return 'cling';
+    }
+    return null;
+  }
+
+  double _evaluateViaRoot(String input) {
+    final command = _command ?? _resolveCommand();
     if (command == null) {
-      _lastErrorMessage = 'ROOT is not available on PATH.';
+      _lastErrorMessage = 'ROOT/Cling command was not found on PATH.';
       return double.nan;
     }
 
-    final script = _buildFormulaScript(input);
-    final args = <String>['-b', '-q', '-l', '-e', script];
-    _logInvocation(command, args);
-
+    final script = _buildMacro(input);
     try {
+      final args = switch (command) {
+        'root' => <String>['-b', '-q', '-l', '-e', script],
+        'cling' => <String>['-b', '-q', '-l', '-e', script],
+        _ => <String>['-b', '-q', '-l', '-e', script],
+      };
+      _logInvocation(command, args);
       final result = Process.runSync(command, args);
       final stdoutText = (result.stdout as Object?)?.toString() ?? '';
       final stderrText = (result.stderr as Object?)?.toString() ?? '';
       final combined = '$stdoutText\n$stderrText';
       _logResult(command, result.exitCode, stdoutText, stderrText);
-
       final parsed = _parseResult(combined);
       if (parsed != null) {
         _lastErrorMessage = '';
@@ -78,14 +108,7 @@ final class ClingReplBackend implements ExpressionBackend {
     }
   }
 
-  String? _resolveRootCommand() {
-    if (_commandExists('root')) {
-      return 'root';
-    }
-    return null;
-  }
-
-  String _buildFormulaScript(String input) {
+  String _buildMacro(String input) {
     final escaped = _escapeForCString(input);
     return '''
 #include <TFormula.h>
@@ -180,7 +203,8 @@ pcalc_eval();
     if (!backendDebugLoggingEnabled) {
       return;
     }
-    stdout.writeln('[pcalc express][backend] $command ${args.join(' ')}');
+    final rendered = _renderCommandLine(command, args);
+    stdout.writeln('[pcalc express][backend] $rendered');
   }
 
   void _logResult(
@@ -207,5 +231,10 @@ pcalc_eval();
         stdout.writeln();
       }
     }
+  }
+
+  String _renderCommandLine(String command, List<String> args) {
+    final renderedArgs = args.map(_escapeForShell).join(' ');
+    return [command, renderedArgs].join(' ').trimRight();
   }
 }

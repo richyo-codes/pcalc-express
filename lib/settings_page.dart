@@ -199,7 +199,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Debug backend command logging'),
                       subtitle: const Text(
-                        'Print ROOT/Cling command lines and results to the console.',
+                        'Print ROOT formula command lines and results to the console.',
                       ),
                       value: _backendDebugLoggingEnabled,
                       onChanged: (value) {
