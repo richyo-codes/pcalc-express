@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=pcalc express (Cling)
+Comment=Programmer-focused expression calculator with ROOT/Cling backend
+Exec=run-rnd-pcalc-ng-cling
+Icon=com.richnetdesign.pcalcexpress.cling
+Terminal=false
+Type=Application
+Categories=Utility;Calculator;
+StartupNotify=true
+StartupWMClass=com.richnetdesign.pcalcexpress.cling

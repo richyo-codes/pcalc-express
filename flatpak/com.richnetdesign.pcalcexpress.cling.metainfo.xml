@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.richnetdesign.pcalcexpress.cling</id>
+  <name>pcalc express (Cling)</name>
+  <summary>Programmer calculator with ROOT/Cling evaluation</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <launchable type="desktop-id">com.richnetdesign.pcalcexpress.cling.desktop</launchable>
+  <description>
+    <p>
+      This experimental Flatpak variant starts pcalc express with the Cling C++
+      backend enabled. If ROOT is installed on the host, the app can invoke it
+      from inside the sandbox for cast-heavy and C++-style expressions.
+    </p>
+  </description>
+  <categories>
+    <category>Utility</category>
+    <category>Calculator</category>
+  </categories>
+  <developer id="com.richnetdesign">
+    <name>RichNetDesign</name>
+  </developer>
+</component>

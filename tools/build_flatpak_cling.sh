@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-APP_ID="com.richnetdesign.pcalcexpress"
+APP_ID="com.richnetdesign.pcalcexpress.cling"
 MANIFEST="$ROOT_DIR/flatpak/$APP_ID.yml"
 OUT_DIR="$ROOT_DIR/build"
 
@@ -23,8 +23,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BUILD_DIR="$OUT_DIR/flatpak"
-REPO_DIR="$OUT_DIR/flatpak-repo"
+BUILD_DIR="$OUT_DIR/flatpak-cling"
+REPO_DIR="$OUT_DIR/flatpak-cling-repo"
 BUNDLE_PATH="$OUT_DIR/$APP_ID.flatpak"
 FLATPAK_BUILDER_ARGS=(--disable-rofiles-fuse --force-clean)
 

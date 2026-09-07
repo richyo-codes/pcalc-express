@@ -1,0 +1,42 @@
+app-id: com.richnetdesign.pcalcexpress.cling
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+command: run-rnd-pcalc-ng-cling
+finish-args:
+  - --share=network
+  - --socket=wayland
+  - --socket=x11
+  - --device=dri
+  - --share=ipc
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  - name: rnd-pcalc-ng-cling
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../build/linux/x64/release/bundle
+        dest: bundle
+      - type: dir
+        path: .
+        dest: flatpak
+      - type: dir
+        path: ../assets/icons
+        dest: icons
+    build-commands:
+      - install -Dm755 bundle/rnd_pcalc_ng /app/bin/rnd_pcalc_ng
+      - cp -r bundle/data /app/bin/
+      - cp -r bundle/lib /app/bin/
+      - |
+        cat > /app/bin/run-rnd-pcalc-ng-cling <<'EOF'
+        #!/usr/bin/env sh
+        export LD_LIBRARY_PATH="/app/bin/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export PCALC_BACKEND=clingCxx
+        exec /app/bin/rnd_pcalc_ng "$@"
+        EOF
+      - chmod 755 /app/bin/run-rnd-pcalc-ng-cling
+      - install -Dm644 flatpak/com.richnetdesign.pcalcexpress.cling.desktop /app/share/applications/com.richnetdesign.pcalcexpress.cling.desktop
+      - install -Dm644 flatpak/com.richnetdesign.pcalcexpress.cling.metainfo.xml /app/share/metainfo/com.richnetdesign.pcalcexpress.cling.metainfo.xml
+      - install -Dm644 icons/app_icon_256.png /app/share/icons/hicolor/256x256/apps/com.richnetdesign.pcalcexpress.cling.png
+      - install -Dm644 icons/app_icon_512.png /app/share/icons/hicolor/512x512/apps/com.richnetdesign.pcalcexpress.cling.png
