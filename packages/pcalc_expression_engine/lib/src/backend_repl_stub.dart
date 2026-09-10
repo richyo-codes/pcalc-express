@@ -1,9 +1,13 @@
 import 'backend.dart';
 
 final class RootFormulaBackend implements ExpressionBackend {
-  RootFormulaBackend({required this.capabilities});
+  RootFormulaBackend({
+    required this.capabilities,
+    required this.isDebugLoggingEnabled,
+  });
 
   final BackendCapabilities capabilities;
+  final bool Function() isDebugLoggingEnabled;
 
   @override
   Future<void> initialize() async {
@@ -13,7 +17,7 @@ final class RootFormulaBackend implements ExpressionBackend {
   }
 
   @override
-  double evaluate(String input) {
+  ExpressionEvaluationResult evaluate(String input) {
     throw UnsupportedError(
       'ROOT formula backend is not available on this platform.',
     );

@@ -3,12 +3,16 @@ import 'dart:io';
 import 'backend.dart';
 
 final class RootFormulaBackend implements ExpressionBackend {
-  RootFormulaBackend({required this.capabilities});
+  RootFormulaBackend({
+    required this.capabilities,
+    required this.isDebugLoggingEnabled,
+  });
 
   static const String _resultPrefix = '__PCALC_RESULT__=';
   static const String _errorPrefix = '__PCALC_ERROR__=';
 
   final BackendCapabilities capabilities;
+  final bool Function() isDebugLoggingEnabled;
   String _lastErrorMessage = '';
 
   @override
@@ -18,7 +22,7 @@ final class RootFormulaBackend implements ExpressionBackend {
     }
 
     final result = _evaluateFormula('1 + 1');
-    if (result.isNaN) {
+    if (result.isError) {
       final message = _lastErrorMessage;
       throw StateError(
         message.isEmpty
@@ -29,7 +33,7 @@ final class RootFormulaBackend implements ExpressionBackend {
   }
 
   @override
-  double evaluate(String input) => _evaluateFormula(input);
+  ExpressionEvaluationResult evaluate(String input) => _evaluateFormula(input);
 
   @override
   String getLastErrorMessage() => _lastErrorMessage;
@@ -44,11 +48,11 @@ final class RootFormulaBackend implements ExpressionBackend {
     capabilities: capabilities,
   );
 
-  double _evaluateFormula(String input) {
+  ExpressionEvaluationResult _evaluateFormula(String input) {
     final command = _resolveRootCommand();
     if (command == null) {
       _lastErrorMessage = 'ROOT is not available on PATH.';
-      return double.nan;
+      return _errorResult('ROOT is not available on PATH.');
     }
 
     final script = _buildFormulaScript(input);
@@ -71,10 +75,10 @@ final class RootFormulaBackend implements ExpressionBackend {
       _lastErrorMessage =
           _extractErrorMessage(combined) ??
           'ROOT subprocess evaluation failed with exit code ${result.exitCode}.';
-      return double.nan;
+      return _errorResult(_lastErrorMessage, rawOutput: combined);
     } catch (error) {
       _lastErrorMessage = error.toString();
-      return double.nan;
+      return _errorResult(_lastErrorMessage);
     }
   }
 
@@ -110,7 +114,7 @@ pcalc_eval();
 ''';
   }
 
-  double? _parseResult(String output) {
+  ExpressionEvaluationResult? _parseResult(String output) {
     final resultLine = output
         .split(RegExp(r'\r?\n'))
         .map((line) => line.trim())
@@ -119,7 +123,34 @@ pcalc_eval();
       return null;
     }
     final valueText = resultLine.substring(_resultPrefix.length).trim();
-    return double.tryParse(valueText);
+    final value = double.tryParse(valueText);
+    if (value == null) {
+      return null;
+    }
+    final isWhole = value.isFinite && value.truncateToDouble() == value;
+    final integerValue = isWhole ? value.toInt() : value.truncate();
+    return ExpressionEvaluationResult(
+      backendKind: BackendKind.rootFormula,
+      kind: isWhole
+          ? ExpressionValueKind.integer
+          : ExpressionValueKind.floating,
+      displayText: value.toString(),
+      numericValue: value,
+      integerValue: integerValue,
+      bitWidth: 32,
+      isSigned: true,
+      rawOutput: output,
+    );
+  }
+
+  ExpressionEvaluationResult _errorResult(String message, {String? rawOutput}) {
+    return ExpressionEvaluationResult(
+      backendKind: BackendKind.rootFormula,
+      kind: ExpressionValueKind.error,
+      displayText: message,
+      errorMessage: message,
+      rawOutput: rawOutput,
+    );
   }
 
   String? _extractErrorMessage(String output) {
@@ -177,7 +208,7 @@ pcalc_eval();
   }
 
   void _logInvocation(String command, List<String> args) {
-    if (!backendDebugLoggingEnabled) {
+    if (!isDebugLoggingEnabled()) {
       return;
     }
     stdout.writeln('[pcalc express][backend] $command ${args.join(' ')}');
@@ -189,7 +220,7 @@ pcalc_eval();
     String stdoutText,
     String stderrText,
   ) {
-    if (!backendDebugLoggingEnabled) {
+    if (!isDebugLoggingEnabled()) {
       return;
     }
     stdout.writeln('[pcalc express][backend] $command exited with $exitCode');

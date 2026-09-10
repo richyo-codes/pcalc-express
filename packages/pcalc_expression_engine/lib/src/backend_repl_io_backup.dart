@@ -3,12 +3,16 @@ import 'dart:io';
 import 'backend.dart';
 
 final class ClingReplBackend implements ExpressionBackend {
-  ClingReplBackend({required this.capabilities});
+  ClingReplBackend({
+    required this.capabilities,
+    required this.isDebugLoggingEnabled,
+  });
 
   static const String _resultPrefix = '__PCALC_RESULT__=';
   static const String _errorPrefix = '__PCALC_ERROR__=';
 
   final BackendCapabilities capabilities;
+  final bool Function() isDebugLoggingEnabled;
   String _lastErrorMessage = '';
   String? _command;
 
@@ -27,7 +31,7 @@ final class ClingReplBackend implements ExpressionBackend {
 
     _command = command;
     final probeResult = _evaluateViaRoot('1 + 1');
-    if (probeResult.isNaN) {
+    if (probeResult.isError) {
       final message = _lastErrorMessage;
       throw StateError(
         message.isEmpty
@@ -38,12 +42,12 @@ final class ClingReplBackend implements ExpressionBackend {
   }
 
   @override
-  double evaluate(String input) {
+  ExpressionEvaluationResult evaluate(String input) {
     if (_command == null) {
       _command = _resolveCommand();
       if (_command == null) {
         _lastErrorMessage = 'ROOT is not available on PATH.';
-        return double.nan;
+        return _errorResult(_lastErrorMessage);
       }
     }
     return _evaluateViaRoot(input);
@@ -72,11 +76,11 @@ final class ClingReplBackend implements ExpressionBackend {
     return null;
   }
 
-  double _evaluateViaRoot(String input) {
+  ExpressionEvaluationResult _evaluateViaRoot(String input) {
     final command = _command ?? _resolveCommand();
     if (command == null) {
       _lastErrorMessage = 'ROOT/Cling command was not found on PATH.';
-      return double.nan;
+      return _errorResult(_lastErrorMessage);
     }
 
     final script = _buildMacro(input);
@@ -101,10 +105,10 @@ final class ClingReplBackend implements ExpressionBackend {
       _lastErrorMessage =
           _extractErrorMessage(combined) ??
           'ROOT subprocess evaluation failed with exit code ${result.exitCode}.';
-      return double.nan;
+      return _errorResult(_lastErrorMessage, rawOutput: combined);
     } catch (error) {
       _lastErrorMessage = error.toString();
-      return double.nan;
+      return _errorResult(_lastErrorMessage);
     }
   }
 
@@ -133,7 +137,7 @@ pcalc_eval();
 ''';
   }
 
-  double? _parseResult(String output) {
+  ExpressionEvaluationResult? _parseResult(String output) {
     final resultLine = output
         .split(RegExp(r'\r?\n'))
         .map((line) => line.trim())
@@ -142,7 +146,34 @@ pcalc_eval();
       return null;
     }
     final valueText = resultLine.substring(_resultPrefix.length).trim();
-    return double.tryParse(valueText);
+    final value = double.tryParse(valueText);
+    if (value == null) {
+      return null;
+    }
+    final isWhole = value.isFinite && value.truncateToDouble() == value;
+    final integerValue = isWhole ? value.toInt() : value.truncate();
+    return ExpressionEvaluationResult(
+      backendKind: BackendKind.clingRepl,
+      kind: isWhole
+          ? ExpressionValueKind.integer
+          : ExpressionValueKind.floating,
+      displayText: value.toString(),
+      numericValue: value,
+      integerValue: integerValue,
+      bitWidth: 32,
+      isSigned: true,
+      rawOutput: output,
+    );
+  }
+
+  ExpressionEvaluationResult _errorResult(String message, {String? rawOutput}) {
+    return ExpressionEvaluationResult(
+      backendKind: BackendKind.clingRepl,
+      kind: ExpressionValueKind.error,
+      displayText: message,
+      errorMessage: message,
+      rawOutput: rawOutput,
+    );
   }
 
   String? _extractErrorMessage(String output) {
@@ -200,7 +231,7 @@ pcalc_eval();
   }
 
   void _logInvocation(String command, List<String> args) {
-    if (!backendDebugLoggingEnabled) {
+    if (!isDebugLoggingEnabled()) {
       return;
     }
     final rendered = _renderCommandLine(command, args);
@@ -213,7 +244,7 @@ pcalc_eval();
     String stdoutText,
     String stderrText,
   ) {
-    if (!backendDebugLoggingEnabled) {
+    if (!isDebugLoggingEnabled()) {
       return;
     }
     stdout.writeln('[pcalc express][backend] $command exited with $exitCode');

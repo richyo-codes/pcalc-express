@@ -7,10 +7,10 @@ Future<void> _pumpCalculatorHarness(
   required Size surfaceSize,
   int initialPanel = 0,
 }) async {
-  tester.view.physicalSize = surfaceSize;
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
+  // Keep browser viewport metrics native. Overriding physical size and DPR
+  // independently can briefly produce invalid web view insets during resize.
+  await tester.binding.setSurfaceSize(surfaceSize);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
     MaterialApp(
@@ -27,6 +27,22 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets('keypad buttons append to the expression on desktop', (
+    tester,
+  ) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
+
+    final expressionField = find.byType(TextField);
+    expect(tester.widget<TextField>(expressionField).selectAllOnFocus, isFalse);
+
+    await tester.tap(expressionField);
+    await tester.enterText(expressionField, '1+2');
+    await tester.tap(find.widgetWithText(FilledButton, '3'));
+    await tester.tap(find.widgetWithText(FilledButton, '4'));
+
+    expect(tester.widget<TextField>(expressionField).controller!.text, '1+234');
+  });
+
   testWidgets('renders compact phone keypad layout', (tester) async {
     await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
 

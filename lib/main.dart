@@ -12,8 +12,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final backendPreference = await loadBackendPreference();
   final backendDebugLoggingEnabled = await loadBackendDebugLoggingEnabled();
+  final clangLanguage = await loadClangLanguage();
   setBackendPreference(backendPreference);
   setBackendDebugLoggingEnabled(backendDebugLoggingEnabled);
+  setClangLanguage(clangLanguage);
   try {
     await initializeTinyExpr();
   } catch (_) {
@@ -22,6 +24,12 @@ void main() async {
     await initializeTinyExpr();
   }
   await loadThemeMode(); // <-- Load theme mode before runApp
+  final screenshotTheme = Uri.base.queryParameters['theme'];
+  if (screenshotTheme == 'light') {
+    themeModeNotifier.value = ThemeMode.light;
+  } else if (screenshotTheme == 'dark') {
+    themeModeNotifier.value = ThemeMode.dark;
+  }
 
   // Configure frameless desktop window and custom drag areas.
   if (isLinux || isWindows) {
@@ -51,7 +59,7 @@ void main() async {
         theme: ThemeData.light(),
         darkTheme: ThemeData.dark(),
         themeMode: mode,
-        home: ProgrammerCalculator(),
+        home: const ProgrammerCalculator(),
         debugShowCheckedModeBanner: false,
       ),
     ),

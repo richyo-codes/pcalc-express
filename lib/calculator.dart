@@ -1,14 +1,19 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pcalc_express/app_brand.dart';
 import 'package:pcalc_express/platform_capabilities.dart';
+import 'package:pcalc_express/theme_preferences.dart';
 import 'package:pcalc_express/window_drag_controller.dart';
 import 'package:pcalc_express/settings_page.dart';
 
 import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
+
+import 'feature_flags.dart';
+
 import 'package:pcalc_express/help_screen.dart';
 import 'package:pcalc_express/format_helper.dart';
 
@@ -77,6 +82,186 @@ class CalcButtonConfig {
   }) : insertText = insertText ?? displayText;
 }
 
+enum _CalcButtonRole {
+  number,
+  operator,
+  programmer,
+  utility,
+  destructive,
+  equals,
+}
+
+class _FocusExpressionIntent extends Intent {
+  const _FocusExpressionIntent();
+}
+
+enum _ResultDisplayMode { adaptive, expanded, compact }
+
+final class _BracketAnalysis {
+  const _BracketAnalysis({
+    required this.pairs,
+    required this.unmatchedOffsets,
+    required this.activePair,
+  });
+
+  final Map<int, int> pairs;
+  final Set<int> unmatchedOffsets;
+  final Set<int> activePair;
+
+  bool get hasError => unmatchedOffsets.isNotEmpty;
+  bool get hasActivePair => activePair.isNotEmpty;
+
+  String get statusMessage {
+    if (unmatchedOffsets.isEmpty) {
+      return hasActivePair ? 'Matching brackets' : 'Brackets balanced';
+    }
+    return unmatchedOffsets.length == 1
+        ? 'Unmatched bracket'
+        : '${unmatchedOffsets.length} unmatched brackets';
+  }
+
+  factory _BracketAnalysis.forText(String text, int cursorOffset) {
+    final pairs = <int, int>{};
+    final unmatched = <int>{};
+    final openings = <({int offset, String character})>[];
+    const closingFor = {')': '(', ']': '[', '}': '{'};
+
+    for (var index = 0; index < text.length; index++) {
+      final character = text[index];
+      if (character == '(' || character == '[' || character == '{') {
+        openings.add((offset: index, character: character));
+        continue;
+      }
+      final opening = closingFor[character];
+      if (opening == null) continue;
+      if (openings.isEmpty || openings.last.character != opening) {
+        unmatched.add(index);
+        continue;
+      }
+      final matchedOpening = openings.removeLast();
+      pairs[matchedOpening.offset] = index;
+      pairs[index] = matchedOpening.offset;
+    }
+    unmatched.addAll(openings.map((bracket) => bracket.offset));
+
+    final activePair = <int>{};
+    final candidates = <int>{
+      if (cursorOffset >= 0 && cursorOffset < text.length) cursorOffset,
+      if (cursorOffset > 0 && cursorOffset <= text.length) cursorOffset - 1,
+    };
+    for (final candidate in candidates) {
+      final matching = pairs[candidate];
+      if (matching != null) {
+        activePair.add(candidate);
+        activePair.add(matching);
+        break;
+      }
+    }
+
+    return _BracketAnalysis(
+      pairs: pairs,
+      unmatchedOffsets: unmatched,
+      activePair: activePair,
+    );
+  }
+}
+
+final class _BracketHighlightingController extends TextEditingController {
+  _BracketAnalysis get bracketAnalysis => _BracketAnalysis.forText(
+    text,
+    selection.isValid ? selection.extentOffset : text.length,
+  );
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final analysis = bracketAnalysis;
+    if (text.isEmpty) return TextSpan(style: style);
+    final colors = Theme.of(context).colorScheme;
+    return TextSpan(
+      style: style,
+      children: [
+        for (var index = 0; index < text.length; index++)
+          TextSpan(
+            text: text[index],
+            style: analysis.unmatchedOffsets.contains(index)
+                ? TextStyle(
+                    color: colors.error,
+                    decoration: TextDecoration.underline,
+                    decorationColor: colors.error,
+                    decorationStyle: TextDecorationStyle.wavy,
+                  )
+                : analysis.activePair.contains(index)
+                ? TextStyle(
+                    color: colors.primary,
+                    fontWeight: FontWeight.w800,
+                    backgroundColor: colors.primaryContainer,
+                  )
+                : null,
+          ),
+      ],
+    );
+  }
+}
+
+class _BackendStatusPill extends StatelessWidget {
+  const _BackendStatusPill({
+    required this.name,
+    required this.description,
+    required this.foregroundColor,
+  });
+
+  final String name;
+  final String description;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: description,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 128),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: foregroundColor.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: foregroundColor.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: foregroundColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class HistoryEntry {
   final String expression;
   final String decimal;
@@ -132,42 +317,45 @@ class _ProgrammerCalculatorState extends State<ProgrammerCalculator> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData(
-        primarySwatch: _themeColor,
-        colorScheme: ColorScheme.fromSwatch(primarySwatch: _themeColor),
-        useMaterial3: true,
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade400),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade400),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSwatch(
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, themeMode, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        themeMode: themeMode,
+        theme: ThemeData(
           primarySwatch: _themeColor,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade600),
+          colorScheme: ColorScheme.fromSwatch(primarySwatch: _themeColor),
+          useMaterial3: true,
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade400),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade400),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade600),
+        ),
+        darkTheme: ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.fromSwatch(
+            primarySwatch: _themeColor,
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade600),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade600),
+            ),
           ),
         ),
+        home: CalculatorScreen(
+          onThemeColorChanged: _updateThemeColor,
+          themeColor: _themeColor,
+        ),
+        scrollBehavior: AppScrollBehavior(),
       ),
-      home: CalculatorScreen(
-        onThemeColorChanged: _updateThemeColor,
-        themeColor: _themeColor,
-      ),
-      scrollBehavior: AppScrollBehavior(),
     );
   }
 }
@@ -242,8 +430,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   bool get _usesWideLayoutPlatform =>
       _isDesktopPlatform || (!isAndroid && !isIOS);
 
-  final TextEditingController _controller = TextEditingController();
+  late final _BracketHighlightingController _controller;
   final FocusNode _focusNode = FocusNode(); // Added focus node
+  late _BracketAnalysis _bracketAnalysis;
   String decimalResult = "";
   String hexResult = "";
   String binaryResult = "";
@@ -252,6 +441,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   List<HistoryEntry> history = [];
   bool showCalcButtons = false;
   String _selectedResultLabel = "Dec";
+  _ResultDisplayMode _resultDisplayMode = _ResultDisplayMode.adaptive;
 
   late int _currentPanel;
   late final PageController _pageController;
@@ -260,11 +450,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void initState() {
     super.initState();
 
+    _controller = _BracketHighlightingController();
+    _bracketAnalysis = _controller.bracketAnalysis;
+    _controller.addListener(_updateBracketAnalysis);
+
     _currentPanel = widget.initialPanel;
     _pageController = PageController(initialPage: widget.initialPanel);
 
     // Determine if calculator buttons should be shown
-    if (isAndroid) {
+    if (isAndroid || isIOS || kIsWeb) {
       showCalcButtons = true;
     } else {
       showCalcButtons = widget.showCalcButtonsDesktop ?? false;
@@ -277,15 +471,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   void dispose() {
+    _controller.removeListener(_updateBracketAnalysis);
     _controller.dispose();
     _focusNode.dispose(); // Dispose of the focus node
     _pageController.dispose();
     super.dispose();
   }
 
+  void _updateBracketAnalysis() {
+    final analysis = _controller.bracketAnalysis;
+    if (mounted) {
+      setState(() {
+        _bracketAnalysis = analysis;
+      });
+    }
+  }
+
   void _clearResult() {
     _controller.clear();
 
+    _focusNode.requestFocus();
+  }
+
+  void _focusExpression() {
+    if (!_controller.selection.isValid) {
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    }
     _focusNode.requestFocus();
   }
 
@@ -297,31 +510,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final result = evaluateExpression(input);
 
-      if (!result.isNaN) {
-        double floatValue = result.toDouble();
-        int intValue = result.toInt();
-
-        setState(() {
-          hasCalculationError = false;
-          decimalResult = intValue.toString();
-          hexResult = formatHexResult(intValue);
-          binaryResult = formatBinaryResult(intValue);
-          floatResult = floatValue.toString();
-          history.add(
-            HistoryEntry(
-              expression: input,
-              decimal: decimalResult,
-              hex: hexResult,
-              binary: binaryResult,
-              floatValue: floatResult,
-            ),
-          );
-        });
-      } else {
-        final errMsg = getLastErrorMessage().trim();
-        final displayError = errMsg.isEmpty
-            ? "Expression evaluated to NaN"
-            : errMsg;
+      if (result.isError || !result.hasNumericValue) {
+        final errMsg =
+            result.errorMessage?.trim() ?? getLastErrorMessage().trim();
+        final displayError = errMsg.isEmpty ? result.displayText : errMsg;
 
         setState(() {
           hasCalculationError = true;
@@ -330,7 +522,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           binaryResult = "";
           floatResult = "";
         });
+        return;
       }
+
+      final numericValue = result.numericValue!;
+      final integerValue = result.integerValue ?? numericValue.truncate();
+      final bitWidth = result.bitWidth ?? 32;
+
+      setState(() {
+        hasCalculationError = false;
+        decimalResult = integerValue.toString();
+        hexResult = formatHexResult(integerValue, bitWidth: bitWidth);
+        binaryResult = formatBinaryResult(integerValue, bitWidth: bitWidth);
+        floatResult = formatFloatResult(numericValue);
+        history.add(
+          HistoryEntry(
+            expression: input,
+            decimal: decimalResult,
+            hex: hexResult,
+            binary: binaryResult,
+            floatValue: floatResult,
+          ),
+        );
+      });
     } catch (e) {
       final displayError = e.toString();
       setState(() {
@@ -346,50 +560,83 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   // Panels of calculator buttons
-  List<List<CalcButtonConfig>> get _generalPanel => [
-    [
-      const CalcButtonConfig(
-        displayText: 'AC',
-        tooltip: 'Clear the entire expression',
-      ),
-      const CalcButtonConfig(
-        displayText: 'DEL',
-        tooltip: 'Delete the previous character',
-      ),
-      const CalcButtonConfig(
-        displayText: '(',
-        tooltip: 'Insert opening parenthesis',
-      ),
-      const CalcButtonConfig(
-        displayText: ')',
-        tooltip: 'Insert closing parenthesis',
-      ),
-    ],
-    [
-      const CalcButtonConfig(displayText: '7'),
-      const CalcButtonConfig(displayText: '8'),
-      const CalcButtonConfig(displayText: '9'),
-      const CalcButtonConfig(displayText: '/'),
-    ],
-    [
-      const CalcButtonConfig(displayText: '4'),
-      const CalcButtonConfig(displayText: '5'),
-      const CalcButtonConfig(displayText: '6'),
-      const CalcButtonConfig(displayText: '*'),
-    ],
-    [
-      const CalcButtonConfig(displayText: '1'),
-      const CalcButtonConfig(displayText: '2'),
-      const CalcButtonConfig(displayText: '3'),
-      const CalcButtonConfig(displayText: '-'),
-    ],
-    [
-      const CalcButtonConfig(displayText: '0'),
-      const CalcButtonConfig(displayText: '.'),
-      const CalcButtonConfig(displayText: '='),
-      const CalcButtonConfig(displayText: '+'),
-    ],
-  ];
+  List<List<CalcButtonConfig>> get _generalPanel {
+    final isMobile = isAndroid || isIOS;
+    return [
+      if (isMobile)
+        const [
+          CalcButtonConfig(
+            displayText: 'AC',
+            tooltip: 'Clear the entire expression',
+          ),
+          CalcButtonConfig(
+            displayText: 'DEL',
+            tooltip: 'Delete the previous character',
+          ),
+          CalcButtonConfig(displayText: '←', tooltip: 'Move cursor left'),
+          CalcButtonConfig(displayText: '→', tooltip: 'Move cursor right'),
+        ]
+      else
+        const [
+          CalcButtonConfig(
+            displayText: 'AC',
+            tooltip: 'Clear the entire expression',
+          ),
+          CalcButtonConfig(
+            displayText: 'DEL',
+            tooltip: 'Delete the previous character',
+          ),
+          CalcButtonConfig(
+            displayText: '(',
+            tooltip: 'Insert opening parenthesis',
+          ),
+          CalcButtonConfig(
+            displayText: ')',
+            tooltip: 'Insert closing parenthesis',
+          ),
+        ],
+      if (isMobile)
+        const [
+          CalcButtonConfig(
+            displayText: '(',
+            tooltip: 'Insert opening parenthesis',
+          ),
+          CalcButtonConfig(
+            displayText: ')',
+            tooltip: 'Insert closing parenthesis',
+          ),
+          CalcButtonConfig(
+            displayText: 'SPACE',
+            insertText: ' ',
+            tooltip: 'Insert a space',
+          ),
+        ],
+      [
+        const CalcButtonConfig(displayText: '7'),
+        const CalcButtonConfig(displayText: '8'),
+        const CalcButtonConfig(displayText: '9'),
+        const CalcButtonConfig(displayText: '/'),
+      ],
+      [
+        const CalcButtonConfig(displayText: '4'),
+        const CalcButtonConfig(displayText: '5'),
+        const CalcButtonConfig(displayText: '6'),
+        const CalcButtonConfig(displayText: '*'),
+      ],
+      [
+        const CalcButtonConfig(displayText: '1'),
+        const CalcButtonConfig(displayText: '2'),
+        const CalcButtonConfig(displayText: '3'),
+        const CalcButtonConfig(displayText: '-'),
+      ],
+      [
+        const CalcButtonConfig(displayText: '0'),
+        const CalcButtonConfig(displayText: '.'),
+        const CalcButtonConfig(displayText: '='),
+        const CalcButtonConfig(displayText: '+'),
+      ],
+    ];
+  }
 
   List<CalcButtonConfig> get _bitwiseOperators => const [
     CalcButtonConfig(displayText: '&', tooltip: 'Bitwise AND'),
@@ -405,9 +652,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     CalcButtonConfig(displayText: '!=', tooltip: 'Not equal comparison'),
   ];
 
+  List<CalcButtonConfig> get _hexDigitButtons => const [
+    CalcButtonConfig(displayText: 'A', tooltip: 'Hexadecimal digit A'),
+    CalcButtonConfig(displayText: 'B', tooltip: 'Hexadecimal digit B'),
+    CalcButtonConfig(displayText: 'C', tooltip: 'Hexadecimal digit C'),
+    CalcButtonConfig(displayText: 'D', tooltip: 'Hexadecimal digit D'),
+    CalcButtonConfig(displayText: 'E', tooltip: 'Hexadecimal digit E'),
+    CalcButtonConfig(displayText: 'F', tooltip: 'Hexadecimal digit F'),
+  ];
+
   List<List<CalcButtonConfig>> get _defaultProgrammerPanel => [
-    [..._bitwiseOperators],
-    [..._logicalOperators],
+    [..._hexDigitButtons.take(4)],
+    [..._hexDigitButtons.skip(4), ..._bitwiseOperators.take(2)],
+    [..._bitwiseOperators.skip(2), ..._logicalOperators.take(2)],
+    [..._logicalOperators.skip(2)],
     [
       const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
       const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
@@ -434,14 +692,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   List<List<CalcButtonConfig>> _compactProgrammerPanel() {
     return [
+      [..._hexDigitButtons.take(4)],
+      [..._hexDigitButtons.skip(4), ..._prefixButtons.take(2)],
       [
-        ..._prefixButtons,
+        ..._prefixButtons.skip(2),
         const CalcButtonConfig(
           displayText: 'ANS',
           tooltip: 'Reuse the previous answer',
         ),
+        ..._bitwiseOperators.take(2),
       ],
-      [..._bitwiseOperators],
+      [..._bitwiseOperators.skip(2)],
       [
         const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
         const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
@@ -471,6 +732,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   List<CalcButtonConfig> get _wideProgrammerButtons => [
+    ..._hexDigitButtons,
     ..._prefixButtons,
     const CalcButtonConfig(
       displayText: 'ANS',
@@ -490,6 +752,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   // Widget for page selector buttons
   Widget buildPageSelector() {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = colors.brightness == Brightness.dark;
+    final inactiveBackground = isDark
+        ? const Color(0xFF3F3F3F)
+        : const Color(0xFFE9E6EC);
+    final inactiveForeground = isDark ? Colors.white : const Color(0xFF27232B);
+    const inactiveBorder = Color(0xFF8A858D);
     final selectorButtons = <Widget>[];
     for (var index = 0; index < pageNames.length; index++) {
       if (index > 0) {
@@ -498,13 +767,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       final isSelected = _currentPanel == index;
       selectorButtons.add(
         Expanded(
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isSelected
-                  ? (widget.themeColor ?? Colors.red)
-                  : Colors.grey[300],
-              foregroundColor: isSelected ? Colors.white : Colors.black,
-              elevation: isSelected ? 3 : 0,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: isSelected ? colors.primary : inactiveBackground,
+              foregroundColor: isSelected
+                  ? colors.onPrimary
+                  : inactiveForeground,
+              elevation: isSelected ? 2 : 0,
+              minimumSize: const Size.fromHeight(40),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: TextStyle(
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+              animationDuration: const Duration(milliseconds: 110),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(
+                  color: isSelected ? colors.primary : inactiveBorder,
+                ),
+              ),
             ),
             onPressed: () {
               _pageController.animateToPage(
@@ -513,7 +795,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 curve: Curves.ease,
               );
             },
-            child: Text(pageNames[index]),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSelected) ...[
+                    const Icon(Icons.check, size: 17),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(pageNames[index]),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -529,22 +824,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     List<List<List<CalcButtonConfig>>> buttonPanels,
     bool isCompactLayout,
   ) {
-    final int maxRowCount = buttonPanels.fold<int>(
-      0,
-      (maxRows, panel) => math.max(maxRows, panel.length),
-    );
-    final viewportHeight = MediaQuery.of(context).size.height;
-    final double panelHeight = isCompactLayout
-        ? (viewportHeight < 780 ? 330 : 420)
-        : maxRowCount * 68.0 + math.max(0, maxRowCount - 1) * 8.0;
-
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         buildPageSelector(),
         const SizedBox(height: 8),
-        SizedBox(
-          height: panelHeight,
+        Expanded(
           child: PageView.builder(
             controller: _pageController,
             itemCount: buttonPanels.length,
@@ -695,9 +979,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _openHistorySheet() {
     if (history.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No history yet')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No history yet')));
       return;
     }
     showModalBottomSheet(
@@ -773,6 +1056,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _handleCalcButtonTap(CalcButtonConfig button) {
     final label = button.displayText;
+    if (label == '←') {
+      _moveCursor(-1);
+      return;
+    }
+    if (label == '→') {
+      _moveCursor(1);
+      return;
+    }
     if (label == '=' || label == 'ANS') {
       _calculateResult();
       return;
@@ -811,29 +1102,117 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return;
     }
 
-    if (label == '>') {
-      final selection = _controller.selection;
-      if (selection.start < _controller.text.length) {
-        _controller.selection = TextSelection.collapsed(
-          offset: selection.start + 1,
-        );
-      }
-      _focusNode.requestFocus();
-      return;
-    }
+    final value = _controller.value;
+    final text = value.text;
+    final selection = value.selection;
+    final start = selection.isValid
+        ? selection.start.clamp(0, text.length)
+        : text.length;
+    final end = selection.isValid
+        ? selection.end.clamp(start, text.length)
+        : start;
+    final newText = text.replaceRange(start, end, button.insertText);
+    final cursorOffset = start + button.insertText.length;
 
-    final text = _controller.text;
-    final selection = _controller.selection;
-    final newText = text.replaceRange(
-      selection.start,
-      selection.end,
-      button.insertText,
-    );
-    _controller.text = newText;
-    _controller.selection = TextSelection.collapsed(
-      offset: selection.start + button.insertText.length,
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorOffset),
+      composing: TextRange.empty,
     );
     _focusNode.requestFocus();
+  }
+
+  _CalcButtonRole _calcButtonRole(CalcButtonConfig button) {
+    final label = button.displayText;
+    if (label == '=') {
+      return _CalcButtonRole.equals;
+    }
+    if (label == 'AC') {
+      return _CalcButtonRole.destructive;
+    }
+    if (const {'DEL', '←', '→', 'SPACE'}.contains(label)) {
+      return _CalcButtonRole.utility;
+    }
+    if (RegExp(r'^\d$').hasMatch(label) || label == '.') {
+      return _CalcButtonRole.number;
+    }
+    if (const {'+', '-', '*', '/', '(', ')'}.contains(label)) {
+      return _CalcButtonRole.operator;
+    }
+    return _CalcButtonRole.programmer;
+  }
+
+  ButtonStyle _calcButtonStyle(BuildContext context, CalcButtonConfig button) {
+    final colors = Theme.of(context).colorScheme;
+    final role = _calcButtonRole(button);
+    final isDark = colors.brightness == Brightness.dark;
+    final (background, foreground) = switch (role) {
+      _CalcButtonRole.number => (const Color(0xFF454545), Colors.white),
+      _CalcButtonRole.operator => (
+        isDark ? const Color(0xFF5BE7CF) : const Color(0xFFC9F9ED),
+        const Color(0xFF10241F),
+      ),
+      _CalcButtonRole.programmer => (
+        isDark ? const Color(0xFF4B435B) : const Color(0xFFE6DCF7),
+        isDark ? Colors.white : const Color(0xFF2A2038),
+      ),
+      _CalcButtonRole.utility => (const Color(0xFF4A4A4A), Colors.white),
+      _CalcButtonRole.destructive => (
+        isDark ? const Color(0xFFDC3030) : const Color(0xFFFFDED9),
+        isDark ? Colors.white : const Color(0xFF8C1810),
+      ),
+      _CalcButtonRole.equals => (colors.primary, colors.onPrimary),
+    };
+
+    final hoverBackground = Color.alphaBlend(
+      foreground.withValues(alpha: 0.08),
+      background,
+    );
+    final pressedBackground = Color.alphaBlend(
+      foreground.withValues(alpha: 0.16),
+      background,
+    );
+
+    return FilledButton.styleFrom(
+      foregroundColor: foreground,
+      shadowColor: colors.shadow.withValues(alpha: 0.22),
+      minimumSize: const Size(52, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+      animationDuration: const Duration(milliseconds: 100),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ).copyWith(
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return pressedBackground;
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return hoverBackground;
+        }
+        return background;
+      }),
+      elevation: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return 0;
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return role == _CalcButtonRole.equals ? 3 : 2;
+        }
+        return role == _CalcButtonRole.equals ? 2 : 1;
+      }),
+      side: WidgetStateProperty.resolveWith((states) {
+        final isFocused = states.contains(WidgetState.focused);
+        return BorderSide(
+          color: foreground.withValues(
+            alpha: isFocused ? 0.72 : (isDark ? 0.34 : 0.28),
+          ),
+          width: isFocused ? 2 : 1,
+        );
+      }),
+    );
   }
 
   Widget buildStandaloneCalcButton(
@@ -842,20 +1221,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     required double height,
     required double fontSize,
   }) {
-    final themeColor = widget.themeColor ?? Colors.red;
-    final contrastColor =
-        ThemeData.estimateBrightnessForColor(themeColor) == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-
-    Widget calcButton = ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: themeColor,
-        foregroundColor: contrastColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        elevation: 2,
-      ),
+    Widget calcButton = FilledButton(
+      style: _calcButtonStyle(context, button),
       onPressed: () {
         if (button.onPressed != null) {
           button.onPressed!(context);
@@ -867,11 +1234,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         fit: BoxFit.scaleDown,
         child: Text(
           button.displayText,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
-            color: contrastColor,
-          ),
+          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -880,7 +1243,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       calcButton = Tooltip(message: button.tooltip!, child: calcButton);
     }
 
-    return SizedBox(width: width, height: height, child: calcButton);
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Focus(
+        canRequestFocus: false,
+        descendantsAreFocusable: false,
+        child: calcButton,
+      ),
+    );
   }
 
   Widget buildCalcButtonsPanel(
@@ -889,12 +1260,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     double desktopButtonWidth = 88,
     double desktopButtonHeight = 68,
   }) {
-    final themeColor = widget.themeColor ?? Colors.red;
-    final contrastColor =
-        ThemeData.estimateBrightnessForColor(themeColor) == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-
     final columnCount = rows.fold<int>(
       0,
       (max, row) => math.max(max, row.length),
@@ -949,16 +1314,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             return SizedBox(width: width, height: height);
           }
 
-          Widget calcButton = ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeColor,
-              foregroundColor: contrastColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              elevation: 2,
-            ),
+          Widget calcButton = FilledButton(
+            style: _calcButtonStyle(context, button),
             onPressed: () {
               if (button.onPressed != null) {
                 button.onPressed!(context);
@@ -973,7 +1330,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 style: TextStyle(
                   fontSize: fontSize,
                   fontWeight: FontWeight.w700,
-                  color: contrastColor,
                 ),
               ),
             ),
@@ -983,7 +1339,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             calcButton = Tooltip(message: button.tooltip!, child: calcButton);
           }
 
-          return SizedBox(width: width, height: height, child: calcButton);
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Focus(
+              canRequestFocus: false,
+              descendantsAreFocusable: false,
+              child: calcButton,
+            ),
+          );
         }
 
         if (isDesktopPlatform && !isCompactLayout) {
@@ -1052,28 +1416,42 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final useWideLayout = _usesWideLayoutPlatform;
-    final bool useCompactResults = size.width < 520 || !useWideLayout;
+    final adaptiveResultsExpanded =
+        useWideLayout || (size.width >= 360 && size.height >= 760);
+    final bool useCompactResults = switch (_resultDisplayMode) {
+      _ResultDisplayMode.adaptive => !adaptiveResultsExpanded,
+      _ResultDisplayMode.expanded => false,
+      _ResultDisplayMode.compact => true,
+    };
     final bool useCompactButtons =
         size.width < 520 || size.height < 720 || !useWideLayout;
     final buttonPanels = _buildButtonPanels(useCompactButtons);
+    final backendInfo = selectedBackendInfo();
+    final headerForegroundColor =
+        ThemeData.estimateBrightnessForColor(widget.themeColor ?? Colors.red) ==
+            Brightness.dark
+        ? Colors.white
+        : Colors.black;
 
-    // Small "C" button to the right of the text input
-    final Widget inlineCalcButton = IconButton(
-      icon: Text(
-        "C",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
-      tooltip: "Calculate",
+    final Widget inlineCalcButton = IconButton.filled(
+      icon: const Icon(Icons.calculate_outlined),
+      tooltip: 'Calculate',
       onPressed: _calculateResult,
     );
 
-    final Widget inlineClearButton = IconButton(
-      icon: Text(
-        "🗑️",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
-      tooltip: "Clear",
+    final Widget inlineClearButton = IconButton.filledTonal(
+      icon: const Icon(Icons.delete_sweep_outlined),
+      tooltip: 'Clear expression',
       onPressed: _clearResult,
+    );
+
+    final expressionBorderColor = _bracketAnalysis.hasError
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF8A858D)
+        : const Color(0xFF6F6A73);
+    final expressionBorder = OutlineInputBorder(
+      borderSide: BorderSide(color: expressionBorderColor),
     );
 
     Widget buildResultField(
@@ -1081,11 +1459,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       String value, {
       bool compact = false,
       bool isError = false,
+      bool showLabel = true,
+      Widget? labelAction,
     }) {
       final colorScheme = Theme.of(context).colorScheme;
+      final resultBorderColor = colorScheme.brightness == Brightness.dark
+          ? const Color(0xFF8A858D)
+          : const Color(0xFF8A858D);
       final border = OutlineInputBorder(
         borderSide: BorderSide(
-          color: isError ? colorScheme.error : Theme.of(context).dividerColor,
+          color: isError ? colorScheme.error : resultBorderColor,
         ),
       );
 
@@ -1093,16 +1476,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         padding: const EdgeInsets.symmetric(vertical: 4.0),
         child: Row(
           children: [
-            SizedBox(
-              width: compact ? 90 : 110,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: compact ? 14 : 16,
-                  fontWeight: FontWeight.bold,
+            if (showLabel)
+              SizedBox(
+                width: compact ? 90 : 110,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (labelAction != null) labelAction,
+                  ],
                 ),
               ),
-            ),
             Expanded(
               child: InputDecorator(
                 decoration: InputDecoration(
@@ -1156,6 +1547,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               "Decimal",
               decimalResult,
               isError: hasCalculationError,
+              labelAction: IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.unfold_less, size: 18),
+                tooltip: 'Show one result unit',
+                onPressed: () {
+                  setState(() {
+                    _resultDisplayMode = _ResultDisplayMode.compact;
+                  });
+                },
+              ),
             ),
             buildResultField("Hexadecimal", hexResult),
             buildResultField("Binary", binaryResult),
@@ -1173,20 +1579,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: results.keys.map((label) {
-              return ChoiceChip(
-                label: Text(label),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-                selected: _selectedResultLabel == label,
-                onSelected: (_) {
-                  setState(() {
-                    _selectedResultLabel = label;
-                  });
-                },
-              );
-            }).toList(),
+            children:
+                results.keys.map<Widget>((label) {
+                  return ChoiceChip(
+                    label: Text(label),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    selected: _selectedResultLabel == label,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedResultLabel = label;
+                      });
+                    },
+                  );
+                }).toList()..add(
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.unfold_more),
+                    tooltip: 'Show all result units',
+                    onPressed: () {
+                      setState(() {
+                        _resultDisplayMode = _ResultDisplayMode.expanded;
+                      });
+                    },
+                  ),
+                ),
           ),
           const SizedBox(height: 4),
           buildResultField(
@@ -1194,17 +1612,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             selectedValue,
             compact: true,
             isError: hasCalculationError && _selectedResultLabel == "Dec",
+            showLabel: false,
           ),
         ],
       );
     }
 
     final headerActions = [
-      WindowChromeActionButton(
-        icon: Icons.add,
-        tooltip: 'Add Variable',
-        onPressed: _showAddVariableDialog,
+      _BackendStatusPill(
+        name: backendInfo.name,
+        description: backendInfo.description,
+        foregroundColor: headerForegroundColor,
       ),
+      if (enableCustomVariables)
+        WindowChromeActionButton(
+          icon: Icons.add,
+          tooltip: 'Add Variable',
+          onPressed: _showAddVariableDialog,
+        ),
       WindowChromeActionButton(
         icon: Icons.help_outline,
         tooltip: 'Help',
@@ -1216,6 +1641,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   HelpScreen(themeColor: widget.themeColor ?? Colors.red),
             ),
           );
+        },
+      ),
+      WindowChromeActionButton(
+        icon: Icons.dialpad_outlined,
+        tooltip: showCalcButtons
+            ? 'Hide calculator buttons'
+            : 'Show calculator buttons',
+        onPressed: () {
+          setState(() {
+            showCalcButtons = !showCalcButtons;
+          });
         },
       ),
       WindowChromeActionButton(
@@ -1239,100 +1675,133 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
     ];
 
-    return FramelessWindowResizeFrame(
-      child: Scaffold(
-        appBar: WindowChromeHeader(
-          title: const AppTitleLabel(),
-          backgroundColor: widget.themeColor ?? Colors.red,
-          foregroundColor:
-              ThemeData.estimateBrightnessForColor(
-                    widget.themeColor ?? Colors.red,
-                  ) ==
-                  Brightness.dark
-              ? Colors.white
-              : Colors.black,
-          actions: headerActions,
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 56, // Give the row a fixed height
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _controller,
-                              focusNode: _focusNode,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: "Enter Expression",
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.keyE, control: true):
+            _FocusExpressionIntent(),
+      },
+      child: Actions(
+        actions: {
+          _FocusExpressionIntent: CallbackAction<_FocusExpressionIntent>(
+            onInvoke: (_) {
+              _focusExpression();
+              return null;
+            },
+          ),
+        },
+        child: FramelessWindowResizeFrame(
+          child: Scaffold(
+            appBar: WindowChromeHeader(
+              title: const AppTitleLabel(),
+              backgroundColor: widget.themeColor ?? Colors.red,
+              foregroundColor: headerForegroundColor,
+              actions: headerActions,
+            ),
+            body: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 56, // Give the row a fixed height
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _controller,
+                                  focusNode: _focusNode,
+                                  decoration: InputDecoration(
+                                    border: expressionBorder,
+                                    enabledBorder: expressionBorder,
+                                    focusedBorder: expressionBorder,
+                                    floatingLabelStyle: TextStyle(
+                                      color: expressionBorderColor,
+                                    ),
+                                    labelText: "Enter Expression",
+                                    suffixIcon:
+                                        _bracketAnalysis.hasError ||
+                                            _bracketAnalysis.hasActivePair
+                                        ? Tooltip(
+                                            message:
+                                                _bracketAnalysis.statusMessage,
+                                            child: Icon(
+                                              _bracketAnalysis.hasError
+                                                  ? Icons.error_outline
+                                                  : Icons.link,
+                                              color: expressionBorderColor,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  style: TextStyle(fontSize: 20),
+                                  readOnly:
+                                      isAndroid, // Disable keyboard on Android
+                                  showCursor: true,
+                                  selectAllOnFocus: false,
+                                  enableInteractiveSelection: true,
+                                  onTap: () {
+                                    if (isAndroid) {
+                                      // Keep focus so user can use app keypad
+                                      _focusNode.requestFocus();
+                                    }
+                                  },
+                                  onSubmitted: (_) => _calculateResult(),
+                                ),
                               ),
-                              style: TextStyle(fontSize: 20),
-                              readOnly:
-                                  isAndroid, // Disable keyboard on Android
-                              showCursor: true,
-                              enableInteractiveSelection: true,
-                              onTap: () {
-                                if (isAndroid) {
-                                  // Keep focus so user can use app keypad
-                                  _focusNode.requestFocus();
-                                }
-                              },
-                              onSubmitted: (_) => _calculateResult(),
+                              inlineCalcButton, //
+                              inlineClearButton,
+                              if (isAndroid || isIOS) ...[
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.arrow_left),
+                                  tooltip: 'Move cursor left',
+                                  onPressed: () => _moveCursor(-1),
+                                ),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.arrow_right),
+                                  tooltip: 'Move cursor right',
+                                  onPressed: () => _moveCursor(1),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        if (showCalcButtons)
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: buildResultsSection(useCompactResults),
+                          )
+                        else
+                          Flexible(
+                            fit: FlexFit.tight,
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: buildResultsSection(useCompactResults),
                             ),
                           ),
-                          inlineCalcButton, //
-                          inlineClearButton,
-                          if (isAndroid || isIOS) ...[
-                            IconButton(
-                              icon: const Icon(Icons.arrow_left),
-                              tooltip: 'Move cursor left',
-                              onPressed: () => _moveCursor(-1),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.arrow_right),
-                              tooltip: 'Move cursor right',
-                              onPressed: () => _moveCursor(1),
-                            ),
-                          ],
+                        const SizedBox(height: 10),
+                        if (showCalcButtons) ...[
+                          Expanded(
+                            child: useCompactButtons
+                                ? buildCalcButtonsPageView(
+                                    buttonPanels,
+                                    useCompactButtons,
+                                  )
+                                : SingleChildScrollView(
+                                    child: buildWideCalcButtonsBoard(),
+                                  ),
+                          ),
+                          const SizedBox(height: 10),
                         ],
-                      ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
-                    SizedBox(height: 16),
-                    if (showCalcButtons)
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: buildResultsSection(useCompactResults),
-                      )
-                    else
-                      Flexible(
-                        fit: FlexFit.tight,
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: buildResultsSection(useCompactResults),
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    if (showCalcButtons) ...[
-                      if (useCompactButtons)
-                        buildCalcButtonsPageView(
-                          buttonPanels,
-                          useCompactButtons,
-                        )
-                      else
-                        buildWideCalcButtonsBoard(),
-                      const SizedBox(height: 10),
-                    ],
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

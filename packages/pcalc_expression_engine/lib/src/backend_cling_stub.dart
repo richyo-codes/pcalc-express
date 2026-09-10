@@ -1,9 +1,13 @@
 import 'backend.dart';
 
 final class ClingCxxBackend implements ExpressionBackend {
-  ClingCxxBackend({required this.capabilities});
+  ClingCxxBackend({
+    required this.capabilities,
+    required this.isDebugLoggingEnabled,
+  });
 
   final BackendCapabilities capabilities;
+  final bool Function() isDebugLoggingEnabled;
 
   @override
   Future<void> initialize() async {
@@ -13,7 +17,7 @@ final class ClingCxxBackend implements ExpressionBackend {
   }
 
   @override
-  double evaluate(String input) {
+  ExpressionEvaluationResult evaluate(String input) {
     throw UnsupportedError(
       'Cling C++ backend is not available on this platform.',
     );

@@ -25,6 +25,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
   late bool _showCalcButtonsDesktop;
   bool _backendDebugLoggingEnabled = false;
   BackendKind? _backendPreference;
+  ClangExpressionLanguage _clangLanguage = ClangExpressionLanguage.cpp20;
   bool _backendLoading = true;
   bool _backendBusy = false;
   String? _backendError;
@@ -35,6 +36,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     _showCalcButtonsDesktop = widget.showCalcButtonsDesktop;
     _loadBackendDebugLoggingEnabled();
     _loadBackendPreference();
+    _loadClangLanguage();
   }
 
   Future<void> _loadBackendDebugLoggingEnabled() async {
@@ -56,6 +58,17 @@ class _SettingsDialogState extends State<SettingsDialog> {
     setState(() {
       _backendPreference = preference;
       _backendLoading = false;
+    });
+  }
+
+  Future<void> _loadClangLanguage() async {
+    final language = await loadClangLanguage();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _clangLanguage = language;
+      setClangLanguage(language);
     });
   }
 
@@ -91,6 +104,42 @@ class _SettingsDialogState extends State<SettingsDialog> {
       }
       setState(() {
         _backendPreference = previousPreference;
+        _backendBusy = false;
+        _backendError = error.toString();
+      });
+    }
+  }
+
+  Future<void> _applyClangLanguage(ClangExpressionLanguage language) async {
+    final previousLanguage = _clangLanguage;
+    setState(() {
+      _clangLanguage = language;
+      _backendBusy = true;
+      _backendError = null;
+    });
+    setClangLanguage(language);
+
+    try {
+      await initializeTinyExpr();
+      await saveClangLanguage(language);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _backendBusy = false;
+      });
+    } catch (error) {
+      setClangLanguage(previousLanguage);
+      try {
+        await initializeTinyExpr();
+      } catch (_) {
+        // Preserve the existing error while attempting to restore the session.
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _clangLanguage = previousLanguage;
         _backendBusy = false;
         _backendError = error.toString();
       });
@@ -207,62 +256,95 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      'Expression backend',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    if (_backendLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: LinearProgressIndicator(),
-                      )
-                    else ...[
-                      DropdownButtonFormField<BackendKind?>(
-                        value: _backendPreference,
-                        decoration: const InputDecoration(
-                          labelText: 'Backend override',
-                          helperText:
-                              'Auto follows the platform default. Overrides are saved immediately.',
-                        ),
-                        items: [
-                          const DropdownMenuItem<BackendKind?>(
-                            value: null,
-                            child: Text('Auto'),
-                          ),
-                          ...backendPreferenceOptions.map(
-                            (kind) => DropdownMenuItem<BackendKind?>(
-                              enabled: backendPreferenceIsAvailable(kind),
-                              value: kind,
-                              child: Text(backendPreferenceLabel(kind)),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('Advanced'),
+                      subtitle: const Text(
+                        'Expression backend and diagnostics',
+                      ),
+                      children: [
+                        if (_backendLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: LinearProgressIndicator(),
+                          )
+                        else ...[
+                          DropdownButtonFormField<BackendKind?>(
+                            value: _backendPreference,
+                            decoration: const InputDecoration(
+                              labelText: 'Backend override',
+                              helperText: 'Auto follows the platform default. Overrides are saved immediately.',
                             ),
+                            items: [
+                              const DropdownMenuItem<BackendKind?>(
+                                value: null,
+                                child: Text('Auto'),
+                              ),
+                              ...availableBackendPreferenceOptions.map(
+                                (kind) => DropdownMenuItem<BackendKind?>(
+                                  value: kind,
+                                  child: Text(backendPreferenceLabel(kind)),
+                                ),
+                              ),
+                            ],
+                            onChanged: _backendBusy
+                                ? null
+                                : (value) {
+                                    unawaited(_applyBackendPreference(value));
+                                  },
                           ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<ClangExpressionLanguage>(
+                            value: _clangLanguage,
+                            decoration: const InputDecoration(
+                              labelText: 'Clang language standard',
+                              helperText: 'Used by the Clang constexpr backend. C++20 is the default.',
+                            ),
+                            items: selectableClangExpressionLanguages
+                                .map(
+                                  (language) => DropdownMenuItem(
+                                    value: language,
+                                    child: Text(language.displayName),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: _backendBusy
+                                ? null
+                                : (language) {
+                                    if (language != null) {
+                                      unawaited(_applyClangLanguage(language));
+                                    }
+                                  },
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Current backend: ${backendInfo.name}\n${backendInfo.description}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          if (_backendPreference == null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Auto currently resolves to ${backendInfo.name}.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if (_backendBusy) ...[
+                            const SizedBox(height: 12),
+                            const LinearProgressIndicator(minHeight: 2),
+                          ],
+                          if (_backendError != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _backendError!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ],
                         ],
-                        onChanged: _backendBusy
-                            ? null
-                            : (value) {
-                                unawaited(_applyBackendPreference(value));
-                              },
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Current backend: ${backendInfo.name}\n${backendInfo.description}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      if (_backendBusy) ...[
-                        const SizedBox(height: 12),
-                        const LinearProgressIndicator(minHeight: 2),
                       ],
-                      if (_backendError != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _backendError!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ],
                 ),
               ),

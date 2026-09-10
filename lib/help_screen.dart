@@ -68,6 +68,12 @@ class HelpScreen extends StatelessWidget {
               Text(
                 '- See Settings to enable/disable calculator buttons on desktop.',
               ),
+              Text(
+                '- Press Enter to calculate and Ctrl+E to refocus the formula.',
+              ),
+              Text(
+                '- Arrow keys use normal text cursor movement in the formula.',
+              ),
             ],
           ),
         ),

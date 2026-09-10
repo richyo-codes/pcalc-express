@@ -11,6 +11,10 @@ implementations to be selected by platform and capability.
 - `evaluateExpression()`
 - `getLastErrorMessage()`
 - `selectedBackendInfo()`
+- `ExpressionEvaluationResult`
+- `ExpressionSession`
+- `createExpressionSession()`
+- `resetExpressionSession()`
 
 ## Planned backends
 
@@ -25,4 +29,21 @@ The package still delegates to TinyExpr++ as the working backend by default.
 The Linux ROOT formula backend is available as `BackendKind.rootFormula`.
 The full C++ backend is available as `BackendKind.clingCxx`.
 
+## Wrapper model
+
+- Use the raw ROOT/Cling CLI for ad-hoc debugging.
+- Use the app backend wrapper for stable machine-readable results.
+- Keep formula-only math separate from C++/cast evaluation.
+- The wrapper now carries result metadata such as kind, width, and signedness
+  so the UI can render `char`, integer, floating, and boolean results without
+  guessing.
+- `ExpressionSession` is the stateful API for tabs or separate workspaces. The
+  app still uses a default session today, but the session object is the shape
+  to build on when the UI grows into multiple panes or saved language profiles.
+- `createExpressionSession()` is the embeddable entrypoint for callers that
+  want their own isolated session right away.
+- `resetExpressionSession()` is the notebook-style restart hook for the default
+  session.
+
 For install notes, see [docs/ROOT_CLING.md](/home/ry/code_flutter/rnd_pcalc_ng_public/docs/ROOT_CLING.md).
+For the embedding roadmap, see [docs/EMBEDDABLE_CLING_PLAN.md](/home/ry/code_flutter/rnd_pcalc_ng_public/docs/EMBEDDABLE_CLING_PLAN.md).

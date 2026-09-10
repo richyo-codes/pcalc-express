@@ -1,31 +1,31 @@
-String formatHexResult(int intValue) {
-  // Convert to 8-character hex string (32 bits), padded with zeros
+String formatHexResult(int intValue, {int bitWidth = 32}) {
+  final normalizedBitWidth = bitWidth <= 0 ? 32 : bitWidth;
+  final hexDigits = (normalizedBitWidth / 4).ceil();
   final hex = intValue
-      .toUnsigned(32)
+      .toUnsigned(normalizedBitWidth)
       .toRadixString(16)
       .toUpperCase()
-      .padLeft(8, '0');
-  // Insert a space every 2 characters (every byte)
-  final spacedHex = hex.replaceAllMapped(
-    RegExp(r'.{2}'),
-    (match) => '${match.group(0)} ',
-  );
-  return spacedHex.trim();
+      .padLeft(hexDigits, '0');
+  return hex
+      .replaceAllMapped(RegExp(r'.{2}'), (match) => '${match.group(0)} ')
+      .trim();
 }
 
-String formatBinaryResult(int intValue) {
-  final normalizedValue = intValue.toUnsigned(32);
-  final significantBits = normalizedValue == 0 ? 1 : normalizedValue.bitLength;
-  final bitWidth = significantBits <= 8
+String formatBinaryResult(int intValue, {int bitWidth = 32}) {
+  final sanitizedBitWidth = bitWidth <= 0 ? 32 : bitWidth;
+  final normalizedValue = intValue.toUnsigned(sanitizedBitWidth);
+  final bitWidthToUse = sanitizedBitWidth <= 8
       ? 8
-      : significantBits <= 16
+      : sanitizedBitWidth <= 16
       ? 16
-      : 32;
+      : sanitizedBitWidth <= 32
+      ? 32
+      : 64;
 
   final binary = normalizedValue
       .toRadixString(2)
       .toUpperCase()
-      .padLeft(bitWidth, '0');
+      .padLeft(bitWidthToUse, '0');
 
   return binary
       .replaceAllMapped(RegExp(r'.{8}'), (match) => '${match.group(0)} ')
