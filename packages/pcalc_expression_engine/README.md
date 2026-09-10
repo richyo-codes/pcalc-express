@@ -45,5 +45,6 @@ The full C++ backend is available as `BackendKind.clingCxx`.
 - `resetExpressionSession()` is the notebook-style restart hook for the default
   session.
 
-For install notes, see [docs/ROOT_CLING.md](/home/ry/code_flutter/rnd_pcalc_ng_public/docs/ROOT_CLING.md).
-For the embedding roadmap, see [docs/EMBEDDABLE_CLING_PLAN.md](/home/ry/code_flutter/rnd_pcalc_ng_public/docs/EMBEDDABLE_CLING_PLAN.md).
+For install notes, see [ROOT/Cling setup](../../docs/ROOT_CLING.md).
+Embedded Cling is not part of the current roadmap. The portable typed-expression
+path is the Clang constexpr backend.
