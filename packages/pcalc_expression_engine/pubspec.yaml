@@ -4,15 +4,19 @@ version: 1.0.0
 publish_to: none
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.13.0
 
 dependencies:
   flutter:
     sdk: flutter
+  dart_clang_constexpr:
+    git:
+      url: git@github.com:richyo-codes/dart-clang-constexpr.git
+      ref: 451c83315420130dbedd7dfe875e321ef98d6dea
   tinyexpr_plusplus_ffi:
     git:
       url: https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git
-      ref: feature/platform-backends
+      ref: dc249624c25226406b527a967144e5acf463d0e8
   meta: ^1.16.0
 
 dev_dependencies:
