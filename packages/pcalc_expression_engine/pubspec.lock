@@ -61,8 +61,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
-      resolved-ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
+      ref: cbf6ec09e531cd773acad43677a3fe3b57c5598b
+      resolved-ref: cbf6ec09e531cd773acad43677a3fe3b57c5598b
       url: "https://github.com/richyo-codes/dart-clang-constexpr.git"
     source: git
     version: "0.1.0"
