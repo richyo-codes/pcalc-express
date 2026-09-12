@@ -167,6 +167,12 @@ final class _BracketAnalysis {
 }
 
 final class _BracketHighlightingController extends TextEditingController {
+  // Consume identifiers and quoted literals as complete tokens so their digits
+  // and operator characters do not get highlighted as separate expressions.
+  static final _tokens = RegExp(
+    r'''(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(?:0[xX][0-9a-fA-F]+(?:[uUlL]*)|0[bB][01]+(?:[uUlL]*)|0[oO][0-7]+|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?[fFuUlL]*)|(?:[a-zA-Z_][a-zA-Z_0-9]*)|(?:[+\-*/%&|^~!=<>?:]+)''',
+  );
+
   _BracketAnalysis get bracketAnalysis => _BracketAnalysis.forText(
     text,
     selection.isValid ? selection.extentOffset : text.length,
@@ -181,6 +187,35 @@ final class _BracketHighlightingController extends TextEditingController {
     final analysis = bracketAnalysis;
     if (text.isEmpty) return TextSpan(style: style);
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final literalColor = isDark
+        ? const Color(0xFFA6C5B0)
+        : const Color(0xFF35634A);
+    final operatorColor = isDark
+        ? const Color(0xFF9EBBD7)
+        : const Color(0xFF345D86);
+    final tokenColors = <int, Color>{};
+    for (final token in _tokens.allMatches(text)) {
+      final value = token.group(0)!;
+      final first = value[0];
+      final isLiteral =
+          RegExp(r'[0-9.]').hasMatch(first) ||
+          first == '"' ||
+          first == "'" ||
+          value == 'true' ||
+          value == 'false';
+      final isOperator = RegExp(r'[+\-*/%&|^~!=<>?:]').hasMatch(first);
+      if (!isLiteral && !isOperator) continue;
+      for (var offset = token.start; offset < token.end; offset++) {
+        tokenColors[offset] = isLiteral ? literalColor : operatorColor;
+      }
+    }
+    final composing = value.composing;
+    final showComposing =
+        withComposing &&
+        composing.isValid &&
+        !composing.isCollapsed &&
+        composing.end <= text.length;
     return TextSpan(
       style: style,
       children: [
@@ -196,68 +231,24 @@ final class _BracketHighlightingController extends TextEditingController {
                   )
                 : analysis.activePair.contains(index)
                 ? TextStyle(
-                    color: colors.primary,
-                    fontWeight: FontWeight.w800,
-                    backgroundColor: colors.primaryContainer,
+                    color: isDark
+                        ? const Color(0xFFA8BED5)
+                        : const Color(0xFF294D70),
+                    backgroundColor: isDark
+                        ? const Color(0xFF203247)
+                        : const Color(0xFFE5EDF5),
                   )
-                : null,
+                : TextStyle(
+                    color: tokenColors[index],
+                    decoration:
+                        showComposing &&
+                            index >= composing.start &&
+                            index < composing.end
+                        ? TextDecoration.underline
+                        : null,
+                  ),
           ),
       ],
-    );
-  }
-}
-
-class _BackendStatusPill extends StatelessWidget {
-  const _BackendStatusPill({
-    required this.name,
-    required this.description,
-    required this.foregroundColor,
-  });
-
-  final String name;
-  final String description;
-  final Color foregroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: description,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 128),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: foregroundColor.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: foregroundColor.withValues(alpha: 0.28)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: foregroundColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: foregroundColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -978,60 +969,97 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _openHistorySheet() {
-    if (history.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No history yet')));
-      return;
-    }
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 640),
       builder: (sheetContext) {
         return SafeArea(
           child: SizedBox(
-            height: 320,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: history.length,
-              itemBuilder: (context, index) {
-                final entry = history[history.length - 1 - index];
-                return ListTile(
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _reuseHistoryEntry(entry);
-                  },
-                  title: Text(entry.expression),
-                  subtitle: Text(
-                    "Dec: ${entry.decimal} | Hex: ${entry.hex} | Bin: ${entry.binary}",
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+            height: MediaQuery.sizeOf(sheetContext).height * 0.6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.content_paste),
-                        tooltip: 'Reuse expression',
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _reuseHistoryEntry(entry);
-                        },
+                      Expanded(
+                        child: Text(
+                          'History',
+                          style: Theme.of(sheetContext).textTheme.titleLarge,
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.copy),
-                        tooltip: 'Copy decimal result',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: entry.decimal));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Decimal copied')),
-                          );
-                        },
+                        tooltip: 'Close history',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(sheetContext).pop(),
                       ),
                     ],
                   ),
-                );
-              },
-              separatorBuilder: (_, __) => const Divider(height: 8),
+                ),
+                Expanded(
+                  child: history.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'No calculations yet.\nSuccessful results will appear here during this session.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          itemCount: history.length,
+                          itemBuilder: (context, index) {
+                            final entry = history[history.length - 1 - index];
+                            return ListTile(
+                              onTap: () {
+                                Navigator.of(sheetContext).pop();
+                                _reuseHistoryEntry(entry);
+                              },
+                              title: Text(entry.expression),
+                              subtitle: Text(
+                                'Dec: ${entry.decimal}\nHex: ${entry.hex}\nBin: ${entry.binary}\nFloat: ${entry.floatValue}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.content_paste),
+                                    tooltip: 'Reuse expression',
+                                    onPressed: () {
+                                      Navigator.of(sheetContext).pop();
+                                      _reuseHistoryEntry(entry);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.copy),
+                                    tooltip: 'Copy decimal result',
+                                    onPressed: () {
+                                      Clipboard.setData(
+                                        ClipboardData(text: entry.decimal),
+                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Decimal copied'),
+                                            ),
+                                          );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          separatorBuilder: (_, __) => const Divider(height: 8),
+                        ),
+                ),
+              ],
             ),
           ),
         );
@@ -1426,13 +1454,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final bool useCompactButtons =
         size.width < 520 || size.height < 720 || !useWideLayout;
     final buttonPanels = _buildButtonPanels(useCompactButtons);
-    final backendInfo = selectedBackendInfo();
-    final headerForegroundColor =
-        ThemeData.estimateBrightnessForColor(widget.themeColor ?? Colors.red) ==
-            Brightness.dark
-        ? Colors.white
-        : Colors.black;
-
     final Widget inlineCalcButton = IconButton.filled(
       icon: const Icon(Icons.calculate_outlined),
       tooltip: 'Calculate',
@@ -1618,11 +1639,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       );
     }
 
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final headerActions = [
-      _BackendStatusPill(
-        name: backendInfo.name,
-        description: backendInfo.description,
-        foregroundColor: headerForegroundColor,
+      WindowChromeActionButton(
+        icon: Icons.history,
+        tooltip: 'History',
+        onPressed: _openHistorySheet,
       ),
       if (enableCustomVariables)
         WindowChromeActionButton(
@@ -1652,6 +1674,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           setState(() {
             showCalcButtons = !showCalcButtons;
           });
+        },
+      ),
+      WindowChromeActionButton(
+        icon: isDarkTheme
+            ? Icons.light_mode_outlined
+            : Icons.dark_mode_outlined,
+        tooltip: isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme',
+        onPressed: () async {
+          final mode = isDarkTheme ? ThemeMode.light : ThemeMode.dark;
+          themeModeNotifier.value = mode;
+          await saveThemeMode(mode);
         },
       ),
       WindowChromeActionButton(
@@ -1693,9 +1726,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           child: Scaffold(
             appBar: WindowChromeHeader(
               title: const AppTitleLabel(),
-              backgroundColor: widget.themeColor ?? Colors.red,
-              foregroundColor: headerForegroundColor,
-              actions: headerActions,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              actions: [
+                MenuAnchor(
+                  menuChildren: headerActions.map((action) {
+                    final button = action;
+                    return MenuItemButton(
+                      leadingIcon: Icon(button.icon),
+                      onPressed: button.onPressed,
+                      child: Text(button.tooltip),
+                    );
+                  }).toList(),
+                  builder: (context, controller, child) =>
+                      WindowChromeActionButton(
+                        icon: Icons.menu,
+                        tooltip: 'Application menu',
+                        onPressed: () => controller.isOpen
+                            ? controller.close()
+                            : controller.open(),
+                      ),
+                ),
+              ],
             ),
             body: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -1752,18 +1804,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               ),
                               inlineCalcButton, //
                               inlineClearButton,
-                              if (isAndroid || isIOS) ...[
-                                IconButton.filledTonal(
-                                  icon: const Icon(Icons.arrow_left),
-                                  tooltip: 'Move cursor left',
-                                  onPressed: () => _moveCursor(-1),
-                                ),
-                                IconButton.filledTonal(
-                                  icon: const Icon(Icons.arrow_right),
-                                  tooltip: 'Move cursor right',
-                                  onPressed: () => _moveCursor(1),
-                                ),
-                              ],
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.arrow_left),
+                                tooltip: 'Move cursor left',
+                                onPressed: () => _moveCursor(-1),
+                              ),
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.arrow_right),
+                                tooltip: 'Move cursor right',
+                                onPressed: () => _moveCursor(1),
+                              ),
                             ],
                           ),
                         ),

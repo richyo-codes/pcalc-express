@@ -27,6 +27,29 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets('expression colors distinguish literals and operators', (
+    tester,
+  ) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(620, 800));
+    final field = find.byType(TextField);
+    const expression = "0xFF + 1e-3 + var2 + '+'";
+    await tester.enterText(field, expression);
+    final controller = tester.widget<TextField>(field).controller!;
+    final span = controller.buildTextSpan(
+      context: tester.element(field),
+      style: const TextStyle(color: Colors.black),
+      withComposing: false,
+    );
+    Color? colorAt(int offset) =>
+        (span.children![offset] as TextSpan).style?.color;
+    expect(span.toPlainText(), expression);
+    expect(colorAt(0), isNotNull);
+    expect(colorAt(5), isNot(colorAt(0)));
+    expect(colorAt(expression.indexOf('-')), colorAt(0));
+    expect(colorAt(expression.indexOf('2')), isNull);
+    expect(colorAt(expression.lastIndexOf('+')), colorAt(0));
+  });
+
   testWidgets('keypad buttons append to the expression on desktop', (
     tester,
   ) async {
