@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Generate app icons from our calc SVG variants.
 # Usage: tools/convert.sh [variant]
-#   variant: one of cute | badge | glasses | pixel | chip (default: cute)
+#   variant: one of express | cute | badge | glasses | pixel | chip (default: express)
 
-VARIANT="${1:-cute}"
+VARIANT="${1:-express}"
 SRC_SVG="assets/icons/calc_hex_${VARIANT}.svg"
 
 if [[ ! -f "$SRC_SVG" ]]; then
