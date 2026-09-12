@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pcalc_express/calculator.dart';
+import 'package:pcalc_express/input_preferences.dart';
 
 Future<void> _pumpCalculatorHarness(
   WidgetTester tester, {
@@ -15,6 +16,10 @@ Future<void> _pumpCalculatorHarness(
   await tester.pumpWidget(
     MaterialApp(
       theme: ThemeData.light(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(size: surfaceSize),
+        child: child!,
+      ),
       home: CalculatorScreen(
         showCalcButtonsDesktop: true,
         themeColor: Colors.red,
@@ -27,6 +32,47 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets('mobile grouped keys insert at the cursor', (tester) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
+    final field = find.byType(TextField);
+    await tester.enterText(field, '0x+1');
+    final controller = tester.widget<TextField>(field).controller!;
+    controller.selection = const TextSelection.collapsed(offset: 2);
+    await tester.pump();
+    expect(tester.getSize(field).width, greaterThan(350));
+
+    await tester.tap(find.text('0x ▾'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'F'));
+    await tester.pumpAndSettle();
+    expect(controller.text, '0xF+1');
+    expect(controller.selection.extentOffset, 3);
+
+    await tester.tap(find.text('& ▾'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '<<'));
+    await tester.pumpAndSettle();
+    expect(controller.text, '0xF<<+1');
+    await tester.tap(find.widgetWithText(FilledButton, '←'));
+    await tester.pump();
+    expect(controller.selection.extentOffset, 4);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keyboard preference keeps the expression editable', (tester) async {
+    final previous = useSystemKeyboardNotifier.value;
+    addTearDown(() => useSystemKeyboardNotifier.value = previous);
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
+    useSystemKeyboardNotifier.value = false;
+    await tester.pump();
+    final field = find.byType(TextField);
+    expect(tester.widget<TextField>(field).keyboardType, TextInputType.none);
+    expect(tester.widget<TextField>(field).readOnly, isFalse);
+    useSystemKeyboardNotifier.value = true;
+    await tester.pump();
+    expect(tester.widget<TextField>(field).keyboardType, TextInputType.text);
+  });
+
   testWidgets('expression colors distinguish literals and operators', (
     tester,
   ) async {
@@ -48,6 +94,28 @@ void main() {
     expect(colorAt(expression.indexOf('-')), colorAt(0));
     expect(colorAt(expression.indexOf('2')), isNull);
     expect(colorAt(expression.lastIndexOf('+')), colorAt(0));
+  });
+
+  testWidgets('matching brackets do not paint over the caret', (tester) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(620, 800));
+    final field = find.byType(TextField);
+    await tester.enterText(field, '()');
+    final controller = tester.widget<TextField>(field).controller!;
+    controller.selection = const TextSelection.collapsed(offset: 1);
+    await tester.pump();
+
+    final span = controller.buildTextSpan(
+      context: tester.element(field),
+      style: const TextStyle(color: Colors.black),
+      withComposing: false,
+    );
+    final opening = span.children![0] as TextSpan;
+    final closing = span.children![1] as TextSpan;
+
+    for (final bracket in [opening, closing]) {
+      expect(bracket.style?.backgroundColor, isNull);
+      expect(bracket.style?.decoration, TextDecoration.underline);
+    }
   });
 
   testWidgets('keypad buttons append to the expression on desktop', (

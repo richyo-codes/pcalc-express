@@ -5,6 +5,7 @@ import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 import 'package:pcalc_express/app_brand.dart';
 import 'package:pcalc_express/backend_preferences.dart';
 import 'package:pcalc_express/theme_preferences.dart';
+import 'package:pcalc_express/input_preferences.dart';
 
 class SettingsDialog extends StatefulWidget {
   const SettingsDialog({
@@ -242,6 +243,22 @@ class _SettingsDialogState extends State<SettingsDialog> {
                           _showCalcButtonsDesktop = value;
                         });
                       },
+                    ),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: useSystemKeyboardNotifier,
+                      builder: (context, enabled, _) => SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Use system keyboard'),
+                        subtitle: const Text(
+                          'Open the on-screen keyboard when editing an expression. '
+                          'Turn off to use the calculator keypad. Physical keyboards still work.',
+                        ),
+                        value: enabled,
+                        onChanged: (value) {
+                          unawaited(saveUseSystemKeyboard(value));
+                        },
+                      ),
                     ),
                     const SizedBox(height: 8),
                     SwitchListTile(

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:pcalc_express/app_brand.dart';
 import 'package:pcalc_express/platform_capabilities.dart';
 import 'package:pcalc_express/theme_preferences.dart';
+import 'package:pcalc_express/input_preferences.dart';
 import 'package:pcalc_express/window_drag_controller.dart';
 import 'package:pcalc_express/settings_page.dart';
 
@@ -234,9 +235,11 @@ final class _BracketHighlightingController extends TextEditingController {
                     color: isDark
                         ? const Color(0xFFA8BED5)
                         : const Color(0xFF294D70),
-                    backgroundColor: isDark
-                        ? const Color(0xFF203247)
-                        : const Color(0xFFE5EDF5),
+                    decoration: TextDecoration.underline,
+                    decorationColor: isDark
+                        ? const Color(0xFF587998)
+                        : const Color(0xFF5B7B9B),
+                    decorationThickness: 1.5,
                   )
                 : TextStyle(
                     color: tokenColors[index],
@@ -444,6 +447,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _controller = _BracketHighlightingController();
     _bracketAnalysis = _controller.bracketAnalysis;
     _controller.addListener(_updateBracketAnalysis);
+    useSystemKeyboardNotifier.addListener(_updateInputMode);
 
     _currentPanel = widget.initialPanel;
     _pageController = PageController(initialPage: widget.initialPanel);
@@ -462,11 +466,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   void dispose() {
+    useSystemKeyboardNotifier.removeListener(_updateInputMode);
     _controller.removeListener(_updateBracketAnalysis);
     _controller.dispose();
     _focusNode.dispose(); // Dispose of the focus node
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _updateInputMode() {
+    if (!useSystemKeyboardNotifier.value) {
+      SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    }
+    setState(() {});
   }
 
   void _updateBracketAnalysis() {
@@ -551,8 +563,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   // Panels of calculator buttons
+  bool get _mobileKeypad => MediaQuery.sizeOf(context).width < 600;
+
   List<List<CalcButtonConfig>> get _generalPanel {
-    final isMobile = isAndroid || isIOS;
+    final isMobile = _mobileKeypad;
     return [
       if (isMobile)
         const [
@@ -587,19 +601,37 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ],
       if (isMobile)
-        const [
-          CalcButtonConfig(
+        [
+          const CalcButtonConfig(
             displayText: '(',
             tooltip: 'Insert opening parenthesis',
           ),
-          CalcButtonConfig(
+          const CalcButtonConfig(
             displayText: ')',
             tooltip: 'Insert closing parenthesis',
           ),
           CalcButtonConfig(
-            displayText: 'SPACE',
-            insertText: ' ',
-            tooltip: 'Insert a space',
+            displayText: '0x ▾',
+            tooltip: 'Hex digits and number prefixes',
+            onPressed: (_) => _showOperatorPicker(
+              title: 'Hex digits and number prefixes',
+              options: [..._hexDigitButtons, ..._prefixButtons],
+            ),
+          ),
+          CalcButtonConfig(
+            displayText: '& ▾',
+            tooltip: 'Bitwise and logical operators',
+            onPressed: (_) => _showOperatorPicker(
+              title: 'Bitwise and logical operators',
+              options: [
+                ..._bitwiseOperators,
+                const CalcButtonConfig(displayText: '<<'),
+                const CalcButtonConfig(displayText: '>>'),
+                ..._logicalOperators,
+                const CalcButtonConfig(displayText: '%'),
+                const CalcButtonConfig(displayText: 'SPACE', insertText: ' '),
+              ],
+            ),
           ),
         ],
       [
@@ -719,6 +751,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final programmerPanel = isCompactLayout
         ? _compactProgrammerPanel()
         : _defaultProgrammerPanel;
+    if (_mobileKeypad) {
+      programmerPanel.insert(0, _generalPanel.first);
+      programmerPanel.add(const [
+        CalcButtonConfig(displayText: '(', tooltip: 'Insert opening parenthesis'),
+        CalcButtonConfig(displayText: ')', tooltip: 'Insert closing parenthesis'),
+        CalcButtonConfig(displayText: 'SPACE', insertText: ' '),
+        CalcButtonConfig(displayText: '=', tooltip: 'Calculate'),
+      ]);
+    }
     return [_generalPanel, programmerPanel];
   }
 
@@ -1452,7 +1493,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _ResultDisplayMode.compact => true,
     };
     final bool useCompactButtons =
-        size.width < 520 || size.height < 720 || !useWideLayout;
+        // The merged board needs 720px plus the body's horizontal padding.
+        size.width < 752 || size.height < 720 || !useWideLayout;
     final buttonPanels = _buildButtonPanels(useCompactButtons);
     final Widget inlineCalcButton = IconButton.filled(
       icon: const Icon(Icons.calculate_outlined),
@@ -1788,8 +1830,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                         : null,
                                   ),
                                   style: TextStyle(fontSize: 20),
-                                  readOnly:
-                                      isAndroid, // Disable keyboard on Android
+                                  keyboardType: useSystemKeyboardNotifier.value
+                                      ? TextInputType.text
+                                      : TextInputType.none,
                                   showCursor: true,
                                   selectAllOnFocus: false,
                                   enableInteractiveSelection: true,
@@ -1802,7 +1845,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                   onSubmitted: (_) => _calculateResult(),
                                 ),
                               ),
-                              inlineCalcButton, //
+                              if (!_mobileKeypad || !showCalcButtons) ...[
+                              inlineCalcButton,
                               inlineClearButton,
                               IconButton.filledTonal(
                                 icon: const Icon(Icons.arrow_left),
@@ -1814,6 +1858,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 tooltip: 'Move cursor right',
                                 onPressed: () => _moveCursor(1),
                               ),
+                              ],
                             ],
                           ),
                         ),

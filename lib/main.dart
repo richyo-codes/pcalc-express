@@ -5,11 +5,13 @@ import 'package:pcalc_express/backend_preferences.dart';
 import 'package:pcalc_express/calculator.dart';
 import 'package:pcalc_express/platform_capabilities.dart';
 import 'package:pcalc_express/theme_preferences.dart';
+import 'package:pcalc_express/input_preferences.dart';
 import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await loadInputPreferences();
   final backendPreference = await loadBackendPreference();
   final backendDebugLoggingEnabled = await loadBackendDebugLoggingEnabled();
   final clangLanguage = await loadClangLanguage();
