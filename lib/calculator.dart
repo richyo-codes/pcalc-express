@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pcalc_express/app_brand.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:pcalc_express/platform_capabilities.dart';
 import 'package:pcalc_express/theme_preferences.dart';
 import 'package:pcalc_express/input_preferences.dart';
@@ -17,6 +18,10 @@ import 'feature_flags.dart';
 
 import 'package:pcalc_express/help_screen.dart';
 import 'package:pcalc_express/format_helper.dart';
+
+final Uri _sourceCodeUri = Uri.parse(
+  'https://github.com/richyo-codes/pcalc-express',
+);
 
 class AppScrollBehavior extends MaterialScrollBehavior {
   // Enable drag with mouse/trackpad on desktop (touch already works on mobile)
@@ -754,8 +759,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (_mobileKeypad) {
       programmerPanel.insert(0, _generalPanel.first);
       programmerPanel.add(const [
-        CalcButtonConfig(displayText: '(', tooltip: 'Insert opening parenthesis'),
-        CalcButtonConfig(displayText: ')', tooltip: 'Insert closing parenthesis'),
+        CalcButtonConfig(
+          displayText: '(',
+          tooltip: 'Insert opening parenthesis',
+        ),
+        CalcButtonConfig(
+          displayText: ')',
+          tooltip: 'Insert closing parenthesis',
+        ),
         CalcButtonConfig(displayText: 'SPACE', insertText: ' '),
         CalcButtonConfig(displayText: '=', tooltip: 'Calculate'),
       ]);
@@ -1708,6 +1719,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         },
       ),
       WindowChromeActionButton(
+        icon: Icons.code,
+        tooltip: 'Source code (AGPLv3)',
+        onPressed: () async {
+          await launchUrl(_sourceCodeUri, mode: LaunchMode.externalApplication);
+        },
+      ),
+      WindowChromeActionButton(
         icon: Icons.dialpad_outlined,
         tooltip: showCalcButtons
             ? 'Hide calculator buttons'
@@ -1846,18 +1864,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 ),
                               ),
                               if (!_mobileKeypad || !showCalcButtons) ...[
-                              inlineCalcButton,
-                              inlineClearButton,
-                              IconButton.filledTonal(
-                                icon: const Icon(Icons.arrow_left),
-                                tooltip: 'Move cursor left',
-                                onPressed: () => _moveCursor(-1),
-                              ),
-                              IconButton.filledTonal(
-                                icon: const Icon(Icons.arrow_right),
-                                tooltip: 'Move cursor right',
-                                onPressed: () => _moveCursor(1),
-                              ),
+                                inlineCalcButton,
+                                inlineClearButton,
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.arrow_left),
+                                  tooltip: 'Move cursor left',
+                                  onPressed: () => _moveCursor(-1),
+                                ),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.arrow_right),
+                                  tooltip: 'Move cursor right',
+                                  onPressed: () => _moveCursor(1),
+                                ),
                               ],
                             ],
                           ),

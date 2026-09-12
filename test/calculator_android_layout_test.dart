@@ -32,6 +32,14 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets('application menu offers the AGPL source code', (tester) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(620, 800));
+    await tester.tap(find.byTooltip('Application menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Source code (AGPLv3)'), findsOneWidget);
+  });
+
   testWidgets('mobile grouped keys insert at the cursor', (tester) async {
     await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
     final field = find.byType(TextField);
@@ -59,7 +67,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('keyboard preference keeps the expression editable', (tester) async {
+  testWidgets('keyboard preference keeps the expression editable', (
+    tester,
+  ) async {
     final previous = useSystemKeyboardNotifier.value;
     addTearDown(() => useSystemKeyboardNotifier.value = previous);
     await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
