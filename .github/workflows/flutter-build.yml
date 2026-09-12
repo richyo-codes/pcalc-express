@@ -281,56 +281,6 @@ jobs:
           append-max-detail-suffix: true
           retention-days: 7
 
-  flatpak-cling:
-    name: Linux Flatpak Cling
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Compute version
-        id: version
-        uses: ./.github/actions/compute-version
-
-      - name: Install Linux and Flatpak build dependencies
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
-            libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
-            libsecret-1-dev libssl-dev \
-            flatpak flatpak-builder dbus-user-session
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Enable Linux desktop
-        run: flutter config --enable-linux-desktop
-
-      - name: Install Flutter dependencies
-        run: flutter pub get
-
-      - name: Build Cling Flatpak bundle
-        run: bash ./tools/build_flatpak_cling.sh --out-dir "$RUNNER_TEMP/rnd-pcalc-ng-flatpak-cling"
-
-      - name: Upload Cling Flatpak artifact
-        if: github.event_name != 'pull_request'
-        uses: richnetdesign/git-artifact-upload@v2
-        with:
-          name: rnd-pcalc-ng-flatpak-cling
-          filename: rnd-pcalc-ng-flatpak-cling
-          version: ${{ steps.version.outputs.semver }}
-          path: ${{ runner.temp }}/rnd-pcalc-ng-flatpak-cling/com.richnetdesign.pcalcexpress.cling.flatpak
-          append-max-detail-suffix: true
-          retention-days: 7
-
   web:
     name: Web WASM
     runs-on: ubuntu-latest
