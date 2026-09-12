@@ -41,6 +41,10 @@ class HelpScreen extends StatelessWidget {
                     'Press Enter or Calculate to evaluate. Ctrl+E focuses the expression. The arrow buttons move the cursor; keypad buttons insert at the cursor or replace selected text. DEL removes text and AC clears the expression. Bracket highlighting helps identify matching pairs and unbalanced brackets.',
                   ),
                   const _HelpSection(
+                    'Multiline expressions',
+                    'Use the expand button inside the expression field for multiple lines. Enter inserts a newline in expanded mode; Ctrl+Enter or Command+Enter calculates. The newline button works with the system keyboard off. Collapsing preserves the expression and cursor position.',
+                  ),
+                  const _HelpSection(
                     'Try these with Clang constexpr',
                     'The selected C/C++ language controls the rules. Integer division truncates; use a decimal point for floating-point division. The ^ operator is bitwise XOR, not exponentiation.',
                   ),

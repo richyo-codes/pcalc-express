@@ -35,6 +35,9 @@ are not accepted; results must be numeric constant expressions.
 ## Made for editing
 
 - **Enter** or **=** calculates; **Ctrl+E** focuses the expression.
+- Expand the expression editor for multiple lines. **Enter** inserts a newline
+  while expanded; **Ctrl+Enter** (or **⌘+Enter**) calculates. A newline button
+  is available when using the calculator keypad. Collapse keeps your text.
 - The keypad inserts at the cursor. **←/→**, **DEL**, and **AC** handle editing.
 - On narrow screens, **0x ▾** opens hex digits and prefixes; **& ▾** opens bitwise
   and logical operators. The expression gets the full row.

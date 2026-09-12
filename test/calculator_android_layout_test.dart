@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pcalc_express/calculator.dart';
 import 'package:pcalc_express/input_preferences.dart';
@@ -32,6 +33,77 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets('expanded editor calculates with Control Enter', (tester) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(900, 800));
+    await tester.tap(find.byTooltip('Expand expression editor'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '6 * 7');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('42'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '6 * 7',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expression editor expands without losing text or selection', (
+    tester,
+  ) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(393, 852));
+    final field = find.byType(TextField);
+    await tester.enterText(field, '1 + 2');
+    final controller = tester.widget<TextField>(field).controller!;
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    await tester.pump();
+    final compactHeight = tester.getSize(field).height;
+
+    await tester.tap(find.byTooltip('Expand expression editor'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(field).height, greaterThan(compactHeight));
+    expect(tester.widget<TextField>(field).maxLines, isNull);
+    expect(
+      tester.widget<TextField>(field).textInputAction,
+      TextInputAction.newline,
+    );
+    expect(controller.selection.extentOffset, 3);
+
+    await tester.tap(find.byTooltip('Insert newline'));
+    await tester.pump();
+    expect(controller.text, '1 +\n 2');
+    expect(controller.selection.extentOffset, 4);
+    await tester.tap(find.byTooltip('Collapse expression editor'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(field).height, compactHeight);
+    expect(controller.text, '1 +\n 2');
+    expect(controller.selection.extentOffset, 4);
+    expect(
+      tester.widget<TextField>(field).textInputAction,
+      TextInputAction.done,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expanded editor supports keypad newlines on a short phone', (
+    tester,
+  ) async {
+    final previous = useSystemKeyboardNotifier.value;
+    addTearDown(() => useSystemKeyboardNotifier.value = previous);
+    useSystemKeyboardNotifier.value = false;
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(360, 640));
+    await tester.tap(find.byTooltip('Expand expression editor'));
+    await tester.pumpAndSettle();
+    final field = find.byType(TextField);
+    expect(tester.widget<TextField>(field).keyboardType, TextInputType.none);
+    await tester.tap(find.byTooltip('Insert newline'));
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, '\n');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('application menu offers the AGPL source code', (tester) async {
     await _pumpCalculatorHarness(tester, surfaceSize: const Size(620, 800));
     await tester.tap(find.byTooltip('Application menu'));

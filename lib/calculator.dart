@@ -101,6 +101,10 @@ class _FocusExpressionIntent extends Intent {
   const _FocusExpressionIntent();
 }
 
+class _CalculateExpressionIntent extends Intent {
+  const _CalculateExpressionIntent();
+}
+
 enum _ResultDisplayMode { adaptive, expanded, compact }
 
 final class _BracketAnalysis {
@@ -439,6 +443,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   bool hasCalculationError = false;
   List<HistoryEntry> history = [];
   bool showCalcButtons = false;
+  bool _expressionExpanded = false;
   String _selectedResultLabel = "Dec";
   _ResultDisplayMode _resultDisplayMode = _ResultDisplayMode.adaptive;
 
@@ -1770,11 +1775,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     return Shortcuts(
       shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter, control: true):
+            _CalculateExpressionIntent(),
+        SingleActivator(LogicalKeyboardKey.enter, meta: true):
+            _CalculateExpressionIntent(),
         SingleActivator(LogicalKeyboardKey.keyE, control: true):
             _FocusExpressionIntent(),
       },
       child: Actions(
         actions: {
+          _CalculateExpressionIntent:
+              CallbackAction<_CalculateExpressionIntent>(
+                onInvoke: (_) {
+                  _calculateResult();
+                  return null;
+                },
+              ),
           _FocusExpressionIntent: CallbackAction<_FocusExpressionIntent>(
             onInvoke: (_) {
               _focusExpression();
@@ -1817,7 +1833,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: 56, // Give the row a fixed height
+                          height: _expressionExpanded
+                              ? ((size.height -
+                                            MediaQuery.viewInsetsOf(context)
+                                                .bottom) *
+                                        0.22)
+                                    .clamp(80.0, 176.0)
+                              : 56,
                           child: Row(
                             children: [
                               Expanded(
@@ -1832,10 +1854,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                       color: expressionBorderColor,
                                     ),
                                     labelText: "Enter Expression",
-                                    suffixIcon:
-                                        _bracketAnalysis.hasError ||
-                                            _bracketAnalysis.hasActivePair
-                                        ? Tooltip(
+                                    suffixIcon: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_bracketAnalysis.hasError ||
+                                            _bracketAnalysis.hasActivePair)
+                                          Tooltip(
                                             message:
                                                 _bracketAnalysis.statusMessage,
                                             child: Icon(
@@ -1844,12 +1868,54 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                                   : Icons.link,
                                               color: expressionBorderColor,
                                             ),
-                                          )
-                                        : null,
+                                          ),
+                                        if (_expressionExpanded)
+                                          IconButton(
+                                            tooltip: 'Insert newline',
+                                            icon: const Icon(
+                                              Icons.keyboard_return,
+                                            ),
+                                            onPressed: () =>
+                                                _handleCalcButtonTap(
+                                                  const CalcButtonConfig(
+                                                    displayText: 'Newline',
+                                                    insertText: '\n',
+                                                  ),
+                                                ),
+                                          ),
+                                        IconButton(
+                                          tooltip: _expressionExpanded
+                                              ? 'Collapse expression editor'
+                                              : 'Expand expression editor',
+                                          icon: Icon(
+                                            _expressionExpanded
+                                                ? Icons.unfold_less
+                                                : Icons.unfold_more,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _expressionExpanded =
+                                                  !_expressionExpanded;
+                                            });
+                                            _focusNode.requestFocus();
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                   style: TextStyle(fontSize: 20),
+                                  maxLines: _expressionExpanded ? null : 1,
+                                  expands: _expressionExpanded,
+                                  textAlignVertical: _expressionExpanded
+                                      ? TextAlignVertical.top
+                                      : TextAlignVertical.center,
+                                  textInputAction: _expressionExpanded
+                                      ? TextInputAction.newline
+                                      : TextInputAction.done,
                                   keyboardType: useSystemKeyboardNotifier.value
-                                      ? TextInputType.text
+                                      ? (_expressionExpanded
+                                            ? TextInputType.multiline
+                                            : TextInputType.text)
                                       : TextInputType.none,
                                   showCursor: true,
                                   selectAllOnFocus: false,
@@ -1860,7 +1926,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                       _focusNode.requestFocus();
                                     }
                                   },
-                                  onSubmitted: (_) => _calculateResult(),
+                                  onSubmitted: _expressionExpanded
+                                      ? null
+                                      : (_) => _calculateResult(),
                                 ),
                               ),
                               if (!_mobileKeypad || !showCalcButtons) ...[
