@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="pcalc express is a WASM-enabled programmer calculator for hex, bitwise, and expression-heavy workflows.">
+  <title>pcalc express | WASM calculator</title>
+  <style>
+    :root {
+      --bg: #0c0b10;
+      --panel: rgba(20, 18, 26, 0.82);
+      --panel-strong: rgba(30, 26, 37, 0.92);
+      --text: #f7f4ef;
+      --muted: rgba(247, 244, 239, 0.72);
+      --faint: rgba(247, 244, 239, 0.12);
+      --red: #ef2a23;
+      --red-deep: #b31512;
+      --red-soft: #ff6a5f;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+      --radius: 28px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(239, 42, 35, 0.24), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(239, 42, 35, 0.18), transparent 30%),
+        linear-gradient(180deg, #131018 0%, #0c0b10 50%, #09080c 100%);
+      color: var(--text);
+      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.08;
+      background-image:
+        linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+      background-size: 22px 22px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,.8), transparent 95%);
+    }
+
+    .page {
+      position: relative;
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 20px 0 36px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .brand-text {
+      min-width: 0;
+    }
+
+    .brand-kicker {
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .brand-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+
+    .nav-pill {
+      font-size: 0.92rem;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      border-radius: 999px;
+      padding: 10px 14px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      gap: 28px;
+      align-items: center;
+      padding: 24px 0 30px;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      padding-right: 6px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(239, 42, 35, 0.12);
+      color: #ffd9d5;
+      border: 1px solid rgba(239, 42, 35, 0.35);
+      font-size: 0.86rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 0 6px rgba(239, 42, 35, 0.14);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(3rem, 8vw, 6.1rem);
+      line-height: 0.93;
+      letter-spacing: -0.06em;
+      text-wrap: balance;
+    }
+
+    .title-accent {
+      display: block;
+      color: #f5f0ea;
+    }
+
+    .title-subline {
+      display: block;
+      color: var(--red);
+    }
+
+    .lede {
+      max-width: 58ch;
+      margin: 18px 0 0;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font: inherit;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button-primary {
+      background: linear-gradient(180deg, var(--red) 0%, var(--red-deep) 100%);
+      color: white;
+      box-shadow: 0 18px 30px rgba(239, 42, 35, 0.25);
+    }
+
+    .button-secondary {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .meta-chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      font-size: 0.92rem;
+    }
+
+    .preview {
+      position: relative;
+      min-height: 540px;
+    }
+
+    .browser {
+      position: absolute;
+      inset: 0;
+      border-radius: 30px;
+      background: linear-gradient(180deg, rgba(28,24,34,0.92), rgba(14,12,18,0.96));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .browser::before {
+      content: "";
+      display: block;
+      height: 54px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .browser-controls {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .traffic {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+    }
+
+    .site-name {
+      position: absolute;
+      top: 14px;
+      left: 74px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(247,244,239,0.82);
+      font-size: 0.92rem;
+    }
+
+    .browser-body {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      padding: 18px;
+      height: calc(100% - 54px);
+    }
+
+    .preview-card {
+      border-radius: 22px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .preview-card h2 {
+      margin: 0;
+      font-size: 1.02rem;
+      letter-spacing: -0.03em;
+    }
+
+    .preview-field {
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.02);
+      padding: 12px 14px;
+      color: var(--muted);
+    }
+
+    .results {
+      display: grid;
+      gap: 8px;
+    }
+
+    .result-row {
+      display: grid;
+      grid-template-columns: 82px 1fr 26px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .result-label {
+      color: rgba(247,244,239,0.86);
+      font-size: 0.95rem;
+    }
+
+    .result-value {
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+      padding: 10px 12px;
+      color: #f7f4ef;
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.95rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      opacity: 0.7;
+    }
+
+    .logo-wall {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .app-badge {
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(239,42,35,0.14), rgba(239,42,35,0.06));
+      border: 1px solid rgba(239,42,35,0.35);
+      padding: 14px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .app-badge img {
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 14px 24px rgba(0, 0, 0, 0.28);
+    }
+
+    .app-badge h3 {
+      margin: 0 0 4px;
+      font-size: 1.15rem;
+    }
+
+    .app-badge p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .calculator-mock {
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(239,42,35,0.22), transparent 35%),
+        linear-gradient(180deg, rgba(14,12,18,0.95), rgba(6,6,8,0.98));
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .calc-key {
+      min-height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.11);
+      color: #f8f5ef;
+      font-weight: 700;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    }
+
+    .calc-key.red {
+      background: linear-gradient(180deg, var(--red) 0%, var(--red-deep) 100%);
+    }
+
+    .calc-key.wide {
+      grid-column: span 2;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 960px) {
+      .hero,
+      .browser-body {
+        grid-template-columns: 1fr;
+      }
+
+      .preview {
+        min-height: 620px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        width: min(100% - 20px, 100%);
+      }
+
+      .topbar {
+        padding-top: 10px;
+      }
+
+      .nav-pill {
+        display: none;
+      }
+
+      .preview {
+        min-height: 720px;
+      }
+
+      .browser {
+        border-radius: 24px;
+      }
+
+      .browser-body {
+        padding: 14px;
+      }
+
+      .preview-card {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <img src="../assets/icons/app_icon.png" alt="pcalc express logo">
+        </div>
+        <div class="brand-text">
+          <div class="brand-kicker">WASM calculator</div>
+          <div class="brand-title">pcalc express</div>
+        </div>
+      </div>
+      <div class="nav-pill">Expression-first, bitshift-heavy, browser-ready</div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> shipping target for web</div>
+        <h1>
+          <span class="title-accent">Calculator UI</span>
+          <span class="title-subline">that feels native in the browser.</span>
+        </h1>
+        <p class="lede">
+          pcalc express is a programmer-oriented expression calculator built for WASM delivery.
+          It keeps hex, binary, bitwise operators, and compact keypad workflows visible without
+          forcing a mobile-style compromise on desktop browsers.
+        </p>
+        <div class="actions">
+          <a class="button button-primary" href="../build/web/">
+            Launch WASM app
+          </a>
+          <a class="button button-secondary" href="../docs/FLATPAK.md">
+            Packaging notes
+          </a>
+        </div>
+        <div class="meta-row">
+          <div class="meta-chip">WASM release build</div>
+          <div class="meta-chip">Desktop-first layout</div>
+          <div class="meta-chip">Bitwise and hex focused</div>
+        </div>
+      </div>
+
+      <div class="preview">
+        <div class="browser" aria-hidden="true">
+          <div class="browser-controls">
+            <span class="traffic"></span>
+            <span class="traffic"></span>
+            <span class="traffic"></span>
+          </div>
+          <div class="site-name">
+            <span>pcalc express</span>
+            <span>WASM preview</span>
+          </div>
+          <div class="browser-body">
+            <div class="logo-wall">
+              <div class="app-badge">
+                <img src="../assets/icons/app_icon.png" alt="">
+                <div>
+                  <h3>Bitshift badge</h3>
+                  <p>The current candidate keeps the chevrons, keypad, and technical circuitry cues together.</p>
+                </div>
+              </div>
+              <div class="calculator-mock">
+                <div class="calc-key red">AC</div>
+                <div class="calc-key red">DEL</div>
+                <div class="calc-key">(</div>
+                <div class="calc-key">)</div>
+                <div class="calc-key">7</div>
+                <div class="calc-key">8</div>
+                <div class="calc-key">9</div>
+                <div class="calc-key red">/</div>
+                <div class="calc-key">4</div>
+                <div class="calc-key">5</div>
+                <div class="calc-key">6</div>
+                <div class="calc-key red">*</div>
+                <div class="calc-key">1</div>
+                <div class="calc-key">2</div>
+                <div class="calc-key">3</div>
+                <div class="calc-key red">-</div>
+                <div class="calc-key wide">0</div>
+                <div class="calc-key">.</div>
+                <div class="calc-key">=</div>
+                <div class="calc-key red">+</div>
+              </div>
+            </div>
+
+            <div class="preview-card">
+              <h2>What it publishes</h2>
+              <div class="preview-field">Hex, binary, float, and decimal results stay visible in the same surface.</div>
+              <div class="results">
+                <div class="result-row">
+                  <div class="result-label">Decimal</div>
+                  <div class="result-value">1337</div>
+                  <div class="copy-dot"></div>
+                </div>
+                <div class="result-row">
+                  <div class="result-label">Hex</div>
+                  <div class="result-value">0x00000539</div>
+                  <div class="copy-dot"></div>
+                </div>
+                <div class="result-row">
+                  <div class="result-label">Binary</div>
+                  <div class="result-value">0101 0011 1001</div>
+                  <div class="copy-dot"></div>
+                </div>
+                <div class="result-row">
+                  <div class="result-label">Float</div>
+                  <div class="result-value">1337.0</div>
+                  <div class="copy-dot"></div>
+                </div>
+              </div>
+              <div class="preview-field">Built as a clean WASM artifact, suitable for static hosting or app-style deployment.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div>Prototype page for publishing the browser build.</div>
+      <div>Transparent icon, custom titlebar branding, and desktop-friendly layout cues.</div>
+    </footer>
+  </main>
+</body>
+</html>
