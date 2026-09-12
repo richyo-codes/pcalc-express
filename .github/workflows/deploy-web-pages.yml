@@ -30,7 +30,11 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang libclang-dev llvm-dev cmake ninja-build
+          # Ubuntu 26.04's image provides Clang 22 CMake metadata alongside
+          # LLVM 21 as the unversioned apt default. The native-assets hook
+          # resolves Clang 22, so install its matching static archives too.
+          sudo apt-get install -y \
+            clang libclang-dev llvm-dev libclang-22-dev llvm-22-dev cmake ninja-build
 
       - name: Select matching LLVM and Clang CMake packages
         shell: bash

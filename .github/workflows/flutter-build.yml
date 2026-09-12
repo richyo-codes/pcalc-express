@@ -117,7 +117,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            clang libclang-dev llvm-dev cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            clang libclang-dev llvm-dev libclang-22-dev llvm-22-dev cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
             libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
             libsecret-1-dev libssl-dev
 
@@ -264,7 +264,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            clang libclang-dev llvm-dev cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            clang libclang-dev llvm-dev libclang-22-dev llvm-22-dev cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
             libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
             libsecret-1-dev libssl-dev \
             flatpak flatpak-builder dbus-user-session
