@@ -6,12 +6,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT=8090
 THEME=both
 OUTPUT=
+EXPRESSION=
 BUILD=true
 
 usage() {
   cat <<'EOF'
 Usage: tools/capture_web_screenshot.sh [--no-build] [--theme light|dark|both]
-                                       [--output PATH] [--port PORT]
+                                       [--output PATH] [--port PORT] [--expression TEXT]
 
 Builds the WebAssembly release and captures 393x852 screenshots with Chromium.
 Unlike widget-test goldens, this uses the browser's real font rendering.
@@ -35,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --port)
       PORT="$2"
+      shift 2
+      ;;
+    --expression)
+      EXPRESSION="$2"
       shift 2
       ;;
     --help|-h)
@@ -110,7 +115,8 @@ capture_theme() {
     "$BROWSER" \
     "http://127.0.0.1:$PORT/?theme=$theme" \
     "$output" \
-    "$DEBUG_PORT"
+    "$DEBUG_PORT" \
+    "$EXPRESSION"
   echo "Browser screenshot written to $output"
 }
 

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const [browser, url, output, debugPort] = process.argv.slice(2);
+const [browser, url, output, debugPort, expression] = process.argv.slice(2);
 
 if (!browser || !url || !output || !debugPort) {
   throw new Error('Expected: browser URL output debug-port');
@@ -88,6 +88,19 @@ async function main() {
       awaitPromise: true,
     });
     await delay(15000);
+    if (expression) {
+      // The calculator focuses its expression field on startup.
+      await call('Input.insertText', { text: expression });
+      await call('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Enter', code: 'Enter',
+        windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+      await call('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Enter', code: 'Enter',
+        windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+      await delay(2000);
+    }
     const screenshot = await call('Page.captureScreenshot', { format: 'png' });
     await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     socket.close();
