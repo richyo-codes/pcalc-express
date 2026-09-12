@@ -121,6 +121,19 @@ jobs:
             libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
             libsecret-1-dev libssl-dev
 
+      - name: Select matching LLVM and Clang CMake packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          llvm_dir="$(llvm-config --cmakedir)"
+          clang_dir="${llvm_dir%/llvm}/clang"
+          test -f "$llvm_dir/LLVMConfig.cmake"
+          test -f "$clang_dir/ClangConfig.cmake"
+          echo "LLVM_DIR=$llvm_dir" >> "$GITHUB_ENV"
+          echo "Clang_DIR=$clang_dir" >> "$GITHUB_ENV"
+          echo "Using LLVM_DIR=$llvm_dir"
+          echo "Using Clang_DIR=$clang_dir"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -255,6 +268,19 @@ jobs:
             libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
             libsecret-1-dev libssl-dev \
             flatpak flatpak-builder dbus-user-session
+
+      - name: Select matching LLVM and Clang CMake packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          llvm_dir="$(llvm-config --cmakedir)"
+          clang_dir="${llvm_dir%/llvm}/clang"
+          test -f "$llvm_dir/LLVMConfig.cmake"
+          test -f "$clang_dir/ClangConfig.cmake"
+          echo "LLVM_DIR=$llvm_dir" >> "$GITHUB_ENV"
+          echo "Clang_DIR=$clang_dir" >> "$GITHUB_ENV"
+          echo "Using LLVM_DIR=$llvm_dir"
+          echo "Using Clang_DIR=$clang_dir"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
