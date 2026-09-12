@@ -61,9 +61,9 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: 451c83315420130dbedd7dfe875e321ef98d6dea
-      resolved-ref: 451c83315420130dbedd7dfe875e321ef98d6dea
-      url: "git@github.com:richyo-codes/dart-clang-constexpr.git"
+      ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
+      resolved-ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
+      url: "https://github.com/richyo-codes/dart-clang-constexpr.git"
     source: git
     version: "0.1.0"
   fake_async:

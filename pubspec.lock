@@ -125,9 +125,9 @@ packages:
     dependency: transitive
     description:
       path: "."
-      ref: 6483fc0da3e290899de353d5a4fc20593d54cde0
-      resolved-ref: 6483fc0da3e290899de353d5a4fc20593d54cde0
-      url: "git@github.com:richyo-codes/dart-clang-constexpr.git"
+      ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
+      resolved-ref: "4157a4d968f1fdcde7f10904472cd29d22c70fc2"
+      url: "https://github.com/richyo-codes/dart-clang-constexpr.git"
     source: git
     version: "0.1.0"
   dart_style:
