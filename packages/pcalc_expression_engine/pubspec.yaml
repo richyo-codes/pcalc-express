@@ -12,7 +12,7 @@ dependencies:
   dart_clang_constexpr:
     git:
       url: https://github.com/richyo-codes/dart-clang-constexpr.git
-      ref: cbf6ec09e531cd773acad43677a3fe3b57c5598b
+      ref: 483cd8144573cc3b0975c285ad2e34013191dee6
   tinyexpr_plusplus_ffi:
     git:
       url: https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git
