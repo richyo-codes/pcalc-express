@@ -6,9 +6,21 @@ APP_ID="ca.richyoung.pcalcexpress"
 MANIFEST="$ROOT_DIR/flatpak/$APP_ID.yml"
 OUT_DIR="$ROOT_DIR/build"
 
+usage() {
+  cat <<'EOF'
+Usage: ./tools/build_flatpak.sh [--out-dir PATH]
+
+  --out-dir PATH   Store Flatpak builder artifacts under PATH.
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --out-dir)
+      if [[ $# -lt 2 ]]; then
+        echo "--out-dir requires a path." >&2
+        exit 1
+      fi
       OUT_DIR="$2"
       shift 2
       ;;
@@ -18,6 +30,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
+      usage >&2
       exit 1
       ;;
   esac

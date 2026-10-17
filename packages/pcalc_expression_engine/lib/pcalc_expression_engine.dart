@@ -24,3 +24,4 @@ export 'package:dart_clang_constexpr/dart_clang_constexpr.dart'
 export 'src/backend_probe.dart'
     show canUseClangConstexpr, canUseCling, canUseRoot;
 export 'src/engine.dart' show evaluateExpression;
+export 'src/result_snapshot.dart';

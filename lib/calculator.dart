@@ -6,16 +6,23 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pcalc_express/app_brand.dart';
+import 'package:pcalc_express/calculator_keypad.dart';
+import 'package:pcalc_express/operator_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pcalc_express/platform_capabilities.dart';
 import 'package:pcalc_express/theme_preferences.dart';
 import 'package:pcalc_express/input_preferences.dart';
+import 'package:pcalc_express/result_preferences.dart';
+import 'package:pcalc_express/result_display.dart';
+import 'package:pcalc_express/share_expression_dialog.dart';
 import 'package:pcalc_express/window_drag_controller.dart';
 import 'package:pcalc_express/settings_page.dart';
 
 import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 
 import 'feature_flags.dart';
+import 'endian_buttons.dart';
+import 'container_explorer.dart';
 
 import 'package:pcalc_express/help_screen.dart';
 import 'package:pcalc_express/format_helper.dart';
@@ -36,68 +43,6 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   };
 }
 
-class CalcPageIndicator extends StatelessWidget {
-  final int pageCount;
-  final int currentPage;
-  final ValueChanged<int>? onDotTapped;
-  final Color activeColor;
-  final Color inactiveColor;
-
-  const CalcPageIndicator({
-    Key? key,
-    required this.pageCount,
-    required this.currentPage,
-    this.onDotTapped,
-    this.activeColor = Colors.red,
-    this.inactiveColor = Colors.grey,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        pageCount,
-        (index) => GestureDetector(
-          onTap: onDotTapped != null ? () => onDotTapped!(index) : null,
-          child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 4),
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: currentPage == index ? activeColor : inactiveColor,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class CalcButtonConfig {
-  final String displayText;
-  final String insertText;
-  final String? tooltip;
-  final void Function(BuildContext context)? onPressed;
-
-  const CalcButtonConfig({
-    required this.displayText,
-    String? insertText,
-    this.tooltip,
-    this.onPressed,
-  }) : insertText = insertText ?? displayText;
-}
-
-enum _CalcButtonRole {
-  number,
-  operator,
-  programmer,
-  utility,
-  destructive,
-  equals,
-}
-
 class _FocusExpressionIntent extends Intent {
   const _FocusExpressionIntent();
 }
@@ -105,8 +50,6 @@ class _FocusExpressionIntent extends Intent {
 class _CalculateExpressionIntent extends Intent {
   const _CalculateExpressionIntent();
 }
-
-enum _ResultDisplayMode { adaptive, expanded, compact }
 
 final class _BracketAnalysis {
   const _BracketAnalysis({
@@ -178,6 +121,8 @@ final class _BracketAnalysis {
 }
 
 final class _BracketHighlightingController extends TextEditingController {
+  _BracketHighlightingController({super.text});
+
   // Consume identifiers and quoted literals as complete tokens so their digits
   // and operator characters do not get highlighted as separate expressions.
   static final _tokens = RegExp(
@@ -199,10 +144,14 @@ final class _BracketHighlightingController extends TextEditingController {
     if (text.isEmpty) return TextSpan(style: style);
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final literalColor = isDark
+    final literalColor = isEinkTheme(context)
+        ? Colors.black
+        : isDark
         ? const Color(0xFFA6C5B0)
         : const Color(0xFF35634A);
-    final operatorColor = isDark
+    final operatorColor = isEinkTheme(context)
+        ? Colors.black
+        : isDark
         ? const Color(0xFF9EBBD7)
         : const Color(0xFF345D86);
     final tokenColors = <int, Color>{};
@@ -282,97 +231,13 @@ class HistoryEntry {
   });
 }
 
-class ProgrammerCalculator extends StatefulWidget {
-  const ProgrammerCalculator({super.key});
-
-  @override
-  State<ProgrammerCalculator> createState() => _ProgrammerCalculatorState();
-}
-
-class _ProgrammerCalculatorState extends State<ProgrammerCalculator> {
-  MaterialColor _themeColor = Colors.red;
-
-  @override
-  void initState() {
-    super.initState();
-    // Set dark red as default
-    _themeColor = Colors.red;
-    if (Colors.red[900] != null) {
-      _themeColor = MaterialColor(Colors.red[900]!.value, <int, Color>{
-        50: Colors.red[50]!,
-        100: Colors.red[100]!,
-        200: Colors.red[200]!,
-        300: Colors.red[300]!,
-        400: Colors.red[400]!,
-        500: Colors.red[500]!,
-        600: Colors.red[600]!,
-        700: Colors.red[700]!,
-        800: Colors.red[800]!,
-        900: Colors.red[900]!,
-      });
-    }
-  }
-
-  void _updateThemeColor(MaterialColor color) {
-    setState(() {
-      _themeColor = color;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeModeNotifier,
-      builder: (context, themeMode, _) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        themeMode: themeMode,
-        theme: ThemeData(
-          primarySwatch: _themeColor,
-          colorScheme: ColorScheme.fromSwatch(primarySwatch: _themeColor),
-          useMaterial3: true,
-          inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade400),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade400),
-            ),
-          ),
-        ),
-        darkTheme: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.fromSwatch(
-            primarySwatch: _themeColor,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade600),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade600),
-            ),
-          ),
-        ),
-        home: CalculatorScreen(
-          onThemeColorChanged: _updateThemeColor,
-          themeColor: _themeColor,
-        ),
-        scrollBehavior: AppScrollBehavior(),
-      ),
-    );
-  }
-}
-
 class CalculatorScreen extends StatefulWidget {
   final bool? showCalcButtonsDesktop;
-  final void Function(MaterialColor)? onThemeColorChanged;
   final MaterialColor? themeColor;
   final int initialPanel;
   const CalculatorScreen({
     super.key,
     this.showCalcButtonsDesktop,
-    this.onThemeColorChanged,
     this.themeColor,
     this.initialPanel = 0,
   }) : assert(initialPanel >= 0 && initialPanel <= 1);
@@ -438,9 +303,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final FocusNode _focusNode = FocusNode(); // Added focus node
   late _BracketAnalysis _bracketAnalysis;
   String decimalResult = "";
-  String hexResult = "";
+  String _rawHexResult = "";
+  String get hexResult => formatHexDisplay(
+    _rawHexResult,
+    groupDigits: hexGroupDigitsNotifier.value,
+    showPrefix: hexPrefixNotifier.value,
+  );
   String binaryResult = "";
   String floatResult = "";
+  double? _lastNumericResult;
+  ContainerSnapshot? _containerResult;
+
+  void _refreshFloatPrecision() {
+    if (!mounted) return;
+    setState(() {
+      if (_lastNumericResult != null && floatResult.isNotEmpty) {
+        floatResult = formatFloatResult(
+          _lastNumericResult!,
+          decimalPlaces: floatPrecisionNotifier.value,
+        );
+      }
+    });
+  }
+
   bool hasCalculationError = false;
   List<HistoryEntry> history = [];
   bool showCalcButtons = false;
@@ -448,7 +333,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double? _expressionEditorHeight;
   String? _copiedResultLabel;
   String _selectedResultLabel = "Dec";
-  _ResultDisplayMode _resultDisplayMode = _ResultDisplayMode.adaptive;
+  ResultDisplayMode _resultDisplayMode = ResultDisplayMode.adaptive;
 
   late int _currentPanel;
   late final PageController _pageController;
@@ -457,10 +342,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void initState() {
     super.initState();
 
-    _controller = _BracketHighlightingController();
+    _controller = _BracketHighlightingController(
+      text: expressionFromLaunchUri(Uri.base) ?? '',
+    );
     _bracketAnalysis = _controller.bracketAnalysis;
     _controller.addListener(_updateBracketAnalysis);
     useSystemKeyboardNotifier.addListener(_updateInputMode);
+    floatPrecisionNotifier.addListener(_refreshFloatPrecision);
+    hexGroupDigitsNotifier.addListener(_refreshFloatPrecision);
+    hexPrefixNotifier.addListener(_refreshFloatPrecision);
 
     _currentPanel = widget.initialPanel;
     _pageController = PageController(initialPage: widget.initialPanel);
@@ -480,6 +370,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   void dispose() {
     useSystemKeyboardNotifier.removeListener(_updateInputMode);
+    floatPrecisionNotifier.removeListener(_refreshFloatPrecision);
+    hexGroupDigitsNotifier.removeListener(_refreshFloatPrecision);
+    hexPrefixNotifier.removeListener(_refreshFloatPrecision);
     _controller.removeListener(_updateBracketAnalysis);
     _controller.dispose();
     _focusNode.dispose(); // Dispose of the focus node
@@ -539,6 +432,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final result = evaluateExpression(input);
 
+      if (!result.isError && result.container != null) {
+        setState(() {
+          _containerResult = result.container;
+          hasCalculationError = false;
+          decimalResult = result.displayText;
+          _rawHexResult = binaryResult = floatResult = '';
+          _lastNumericResult = null;
+        });
+        return;
+      }
+      _containerResult = null;
+
       if (result.isError || !result.hasNumericValue) {
         final errMsg =
             result.errorMessage?.trim() ?? getLastErrorMessage().trim();
@@ -547,7 +452,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         setState(() {
           hasCalculationError = true;
           decimalResult = displayError;
-          hexResult = "";
+          _rawHexResult = "";
           binaryResult = "";
           floatResult = "";
         });
@@ -561,7 +466,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       setState(() {
         hasCalculationError = false;
         decimalResult = integerValue.toString();
-        hexResult = formatHexResult(
+        _rawHexResult = formatHexResult(
           integerValue,
           bitWidth: bitWidth,
           isSigned: result.isSigned ?? true,
@@ -571,7 +476,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           bitWidth: bitWidth,
           isSigned: result.isSigned ?? true,
         );
-        floatResult = formatFloatResult(numericValue);
+        _lastNumericResult = numericValue;
+        floatResult = formatFloatResult(
+          numericValue,
+          decimalPlaces: floatPrecisionNotifier.value,
+        );
         history.add(
           HistoryEntry(
             expression: input,
@@ -583,11 +492,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         );
       });
     } catch (e) {
+      _containerResult = null;
       final displayError = e.toString();
       setState(() {
         hasCalculationError = true;
         decimalResult = displayError;
-        hexResult = "";
+        _rawHexResult = "";
         binaryResult = "";
         floatResult = "";
       });
@@ -599,98 +509,145 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   // Panels of calculator buttons
   bool get _mobileKeypad => MediaQuery.sizeOf(context).width < 600;
 
-  List<List<CalcButtonConfig>> get _generalPanel {
-    final isMobile = _mobileKeypad;
-    return [
-      if (isMobile)
+  List<List<CalcButtonConfig>> get _generalPanel =>
+      _generalPanelForWidth(MediaQuery.sizeOf(context).width - 32);
+
+  List<List<CalcButtonConfig>> _generalPanelForWidth(double width) {
+    if (width >= 480) {
+      return [
         const [
           CalcButtonConfig(
             displayText: 'AC',
             tooltip: 'Clear the entire expression',
           ),
           CalcButtonConfig(
-            displayText: 'DEL',
-            tooltip: 'Delete the previous character',
+            displayText: '(',
+            tooltip: 'Insert opening parenthesis',
+          ),
+          CalcButtonConfig(
+            displayText: ')',
+            tooltip: 'Insert closing parenthesis',
           ),
           CalcButtonConfig(displayText: '←', tooltip: 'Move cursor left'),
           CalcButtonConfig(displayText: '→', tooltip: 'Move cursor right'),
-        ]
-      else
-        const [
-          CalcButtonConfig(
-            displayText: 'AC',
-            tooltip: 'Clear the entire expression',
-          ),
           CalcButtonConfig(
             displayText: 'DEL',
             tooltip: 'Delete the previous character',
           ),
-          CalcButtonConfig(
-            displayText: '(',
-            tooltip: 'Insert opening parenthesis',
-          ),
-          CalcButtonConfig(
-            displayText: ')',
-            tooltip: 'Insert closing parenthesis',
-          ),
         ],
-      if (isMobile)
         [
           const CalcButtonConfig(
-            displayText: '(',
-            tooltip: 'Insert opening parenthesis',
+            displayText: '0x',
+            tooltip: 'Hexadecimal prefix',
           ),
-          const CalcButtonConfig(
-            displayText: ')',
-            tooltip: 'Insert closing parenthesis',
-          ),
+          const CalcButtonConfig(displayText: '0b', tooltip: 'Binary prefix'),
+          const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
+          const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
+          const CalcButtonConfig(displayText: '&', tooltip: 'Bitwise AND'),
           CalcButtonConfig(
-            displayText: '0x ▾',
-            tooltip: 'Hex digits and number prefixes',
-            onPressed: (_) => _showOperatorPicker(
-              title: 'Hex digits and number prefixes',
-              options: [..._hexDigitButtons, ..._prefixButtons],
-            ),
-          ),
-          CalcButtonConfig(
-            displayText: '& ▾',
-            tooltip: 'Bitwise and logical operators',
-            onPressed: (_) => _showOperatorPicker(
-              title: 'Bitwise and logical operators',
-              options: [
-                ..._bitwiseOperators,
-                const CalcButtonConfig(displayText: '<<'),
-                const CalcButtonConfig(displayText: '>>'),
-                ..._logicalOperators,
-                const CalcButtonConfig(displayText: '%'),
-                const CalcButtonConfig(displayText: 'SPACE', insertText: ' '),
-              ],
-            ),
+            displayText: 'More ▾',
+            tooltip: 'Numbers and operators',
+            onPressed: (_) => _showOperatorPicker(),
           ),
         ],
-      [
-        const CalcButtonConfig(displayText: '7'),
-        const CalcButtonConfig(displayText: '8'),
-        const CalcButtonConfig(displayText: '9'),
-        const CalcButtonConfig(displayText: '/'),
+        const [
+          CalcButtonConfig(displayText: '7'),
+          CalcButtonConfig(displayText: '8'),
+          CalcButtonConfig(displayText: '9'),
+          CalcButtonConfig(displayText: '/'),
+          CalcButtonConfig(displayText: '|', tooltip: 'Bitwise OR'),
+          CalcButtonConfig(displayText: '^', tooltip: 'Bitwise XOR'),
+        ],
+        const [
+          CalcButtonConfig(displayText: '4'),
+          CalcButtonConfig(displayText: '5'),
+          CalcButtonConfig(displayText: '6'),
+          CalcButtonConfig(displayText: '*'),
+          CalcButtonConfig(displayText: '~', tooltip: 'Bitwise NOT'),
+          CalcButtonConfig(displayText: '%', tooltip: 'Remainder'),
+        ],
+        const [
+          CalcButtonConfig(displayText: '1'),
+          CalcButtonConfig(displayText: '2'),
+          CalcButtonConfig(displayText: '3'),
+          CalcButtonConfig(displayText: '-'),
+          CalcButtonConfig(displayText: '+'),
+          CalcButtonConfig(displayText: '0o', tooltip: 'Octal prefix'),
+        ],
+        const [
+          CalcButtonConfig(displayText: '0'),
+          CalcButtonConfig(displayText: '.'),
+          CalcButtonConfig(displayText: ',', tooltip: 'Separate arguments'),
+          CalcButtonConfig(
+            displayText: 'ANS',
+            tooltip: 'Reuse the previous answer',
+          ),
+          CalcButtonConfig(
+            displayText: 'SPACE',
+            insertText: ' ',
+            tooltip: 'Insert space',
+          ),
+          CalcButtonConfig(displayText: '=', tooltip: 'Calculate'),
+        ],
+      ];
+    }
+
+    return [
+      const [
+        CalcButtonConfig(
+          displayText: 'AC',
+          tooltip: 'Clear the entire expression',
+        ),
+        CalcButtonConfig(displayText: '←', tooltip: 'Move cursor left'),
+        CalcButtonConfig(displayText: '→', tooltip: 'Move cursor right'),
+        CalcButtonConfig(
+          displayText: 'DEL',
+          tooltip: 'Delete the previous character',
+        ),
       ],
       [
-        const CalcButtonConfig(displayText: '4'),
-        const CalcButtonConfig(displayText: '5'),
-        const CalcButtonConfig(displayText: '6'),
-        const CalcButtonConfig(displayText: '*'),
+        const CalcButtonConfig(
+          displayText: '(',
+          tooltip: 'Insert opening parenthesis',
+        ),
+        const CalcButtonConfig(
+          displayText: ')',
+          tooltip: 'Insert closing parenthesis',
+        ),
+        const CalcButtonConfig(displayText: '/', tooltip: 'Divide'),
+        CalcButtonConfig(
+          displayText: 'More ▾',
+          tooltip: 'Numbers and operators',
+          onPressed: (_) => _showOperatorPicker(),
+        ),
       ],
-      [
-        const CalcButtonConfig(displayText: '1'),
-        const CalcButtonConfig(displayText: '2'),
-        const CalcButtonConfig(displayText: '3'),
-        const CalcButtonConfig(displayText: '-'),
+      const [
+        CalcButtonConfig(displayText: '7'),
+        CalcButtonConfig(displayText: '8'),
+        CalcButtonConfig(displayText: '9'),
+        CalcButtonConfig(displayText: '*'),
       ],
-      [
-        const CalcButtonConfig(displayText: '0'),
-        const CalcButtonConfig(displayText: '.'),
-        const CalcButtonConfig(displayText: '='),
-        const CalcButtonConfig(displayText: '+'),
+      const [
+        CalcButtonConfig(displayText: '4'),
+        CalcButtonConfig(displayText: '5'),
+        CalcButtonConfig(displayText: '6'),
+        CalcButtonConfig(displayText: '-'),
+      ],
+      const [
+        CalcButtonConfig(displayText: '1'),
+        CalcButtonConfig(displayText: '2'),
+        CalcButtonConfig(displayText: '3'),
+        CalcButtonConfig(displayText: '+'),
+      ],
+      const [
+        CalcButtonConfig(displayText: '0'),
+        CalcButtonConfig(displayText: '.'),
+        CalcButtonConfig(
+          displayText: 'SPACE',
+          insertText: ' ',
+          tooltip: 'Insert space',
+        ),
+        CalcButtonConfig(displayText: '=', tooltip: 'Calculate'),
       ],
     ];
   }
@@ -826,11 +783,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget buildPageSelector() {
     final colors = Theme.of(context).colorScheme;
     final isDark = colors.brightness == Brightness.dark;
-    final inactiveBackground = isDark
+    final eink = usesEinkBehavior(context);
+    final inactiveBackground = eink
+        ? Colors.white
+        : isDark
         ? const Color(0xFF3F3F3F)
         : const Color(0xFFE9E6EC);
-    final inactiveForeground = isDark ? Colors.white : const Color(0xFF27232B);
-    const inactiveBorder = Color(0xFF8A858D);
+    final inactiveForeground = eink
+        ? Colors.black
+        : isDark
+        ? Colors.white
+        : const Color(0xFF27232B);
+    final inactiveBorder = eink ? Colors.black : const Color(0xFF8A858D);
     final selectorButtons = <Widget>[];
     for (var index = 0; index < pageNames.length; index++) {
       if (index > 0) {
@@ -845,14 +809,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               foregroundColor: isSelected
                   ? colors.onPrimary
                   : inactiveForeground,
-              elevation: isSelected ? 2 : 0,
+              elevation: eink
+                  ? 0
+                  : isSelected
+                  ? 2
+                  : 0,
               minimumSize: const Size.fromHeight(40),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               textStyle: TextStyle(
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 letterSpacing: 0.1,
               ),
-              animationDuration: const Duration(milliseconds: 110),
+              animationDuration: eink
+                  ? Duration.zero
+                  : const Duration(milliseconds: 110),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: BorderSide(
@@ -861,6 +831,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               ),
             ),
             onPressed: () {
+              if (eink) {
+                _pageController.jumpToPage(index);
+                return;
+              }
               _pageController.animateToPage(
                 index,
                 duration: Duration(milliseconds: 300),
@@ -902,6 +876,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         const SizedBox(height: 8),
         Expanded(
           child: PageView.builder(
+            physics: usesEinkBehavior(context)
+                ? const NeverScrollableScrollPhysics()
+                : null,
             controller: _pageController,
             itemCount: buttonPanels.length,
             onPageChanged: (index) {
@@ -913,6 +890,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               return buildCalcButtonsPanel(
                 buttonPanels[index],
                 isCompactLayout: isCompactLayout,
+                includeHexDigits: index == 0,
               );
             },
           ),
@@ -921,9 +899,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         CalcPageIndicator(
           pageCount: buttonPanels.length,
           currentPage: _currentPanel,
-          activeColor: widget.themeColor ?? Colors.red,
+          activeColor: usesEinkBehavior(context)
+              ? Colors.black
+              : widget.themeColor ?? Colors.red,
           inactiveColor: Colors.grey,
           onDotTapped: (index) {
+            if (usesEinkBehavior(context)) {
+              _pageController.jumpToPage(index);
+              return;
+            }
             _pageController.animateToPage(
               index,
               duration: Duration(milliseconds: 300),
@@ -960,7 +944,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   ),
                   const SizedBox(height: 8),
                   buildCalcButtonsPanel(
-                    _generalPanel,
+                    _generalPanelForWidth(376),
                     isCompactLayout: false,
                     desktopButtonWidth: 86,
                     desktopButtonHeight: 62,
@@ -1001,43 +985,33 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  void _showOperatorPicker({
-    required String title,
-    required List<CalcButtonConfig> options,
-  }) {
-    showModalBottomSheet(
+  void _showOperatorPicker() {
+    showOperatorPalette(
       context: context,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: options.map((option) {
-                    return ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop();
-                        _handleCalcButtonTap(option);
-                      },
-                      child: Text(option.displayText),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        );
+      groups: <String, List<CalcButtonConfig>>{
+        'Numbers': [..._prefixButtons, ..._hexDigitButtons],
+        'Bitwise': [
+          ..._bitwiseOperators,
+          const CalcButtonConfig(displayText: '<<', tooltip: 'Shift left'),
+          const CalcButtonConfig(displayText: '>>', tooltip: 'Shift right'),
+        ],
+        'Logic': _logicalOperators,
+        if (selectedBackendInfo().kind == BackendKind.clangConstexpr &&
+            const [
+              ClangExpressionLanguage.cpp,
+              ClangExpressionLanguage.cpp17,
+              ClangExpressionLanguage.cpp20,
+              ClangExpressionLanguage.cpp23,
+            ].contains(clangLanguage))
+          'Endian': endianButtons,
+        'Math': const [
+          CalcButtonConfig(displayText: '%', tooltip: 'Remainder'),
+          CalcButtonConfig(displayText: '(', tooltip: 'Opening parenthesis'),
+          CalcButtonConfig(displayText: ')', tooltip: 'Closing parenthesis'),
+          CalcButtonConfig(displayText: ',', tooltip: 'Separate arguments'),
+        ],
       },
+      onSelected: _handleCalcButtonTap,
     );
   }
 
@@ -1223,328 +1197,46 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _focusNode.requestFocus();
   }
 
-  _CalcButtonRole _calcButtonRole(CalcButtonConfig button) {
-    final label = button.displayText;
-    if (label == '=') {
-      return _CalcButtonRole.equals;
-    }
-    if (label == 'AC') {
-      return _CalcButtonRole.destructive;
-    }
-    if (const {'DEL', '←', '→', 'SPACE'}.contains(label)) {
-      return _CalcButtonRole.utility;
-    }
-    if (RegExp(r'^\d$').hasMatch(label) || label == '.') {
-      return _CalcButtonRole.number;
-    }
-    if (const {'+', '-', '*', '/', '(', ')'}.contains(label)) {
-      return _CalcButtonRole.operator;
-    }
-    return _CalcButtonRole.programmer;
-  }
-
-  String _calcButtonSemanticsLabel(CalcButtonConfig button) {
-    if (button.tooltip?.isNotEmpty ?? false) {
-      return button.tooltip!;
-    }
-    return switch (button.displayText) {
-      'AC' => 'Clear all',
-      'DEL' => 'Delete previous character',
-      '←' => 'Move cursor left',
-      '→' => 'Move cursor right',
-      'SPACE' => 'Insert space',
-      '=' => 'Calculate',
-      '/' => 'Divide',
-      '*' => 'Multiply',
-      '-' => 'Subtract',
-      '+' => 'Add',
-      '.' => 'Decimal point',
-      '(' => 'Left parenthesis',
-      ')' => 'Right parenthesis',
-      _ => button.displayText,
-    };
-  }
-
-  ButtonStyle _calcButtonStyle(BuildContext context, CalcButtonConfig button) {
-    final colors = Theme.of(context).colorScheme;
-    final role = _calcButtonRole(button);
-    final isDark = colors.brightness == Brightness.dark;
-    final (background, foreground) = switch (role) {
-      _CalcButtonRole.number => (const Color(0xFF454545), Colors.white),
-      _CalcButtonRole.operator => (
-        isDark ? const Color(0xFF5BE7CF) : const Color(0xFFC9F9ED),
-        const Color(0xFF10241F),
-      ),
-      _CalcButtonRole.programmer => (
-        isDark ? const Color(0xFF4B435B) : const Color(0xFFE6DCF7),
-        isDark ? Colors.white : const Color(0xFF2A2038),
-      ),
-      _CalcButtonRole.utility => (const Color(0xFF4A4A4A), Colors.white),
-      _CalcButtonRole.destructive => (
-        isDark ? const Color(0xFFDC3030) : const Color(0xFFFFDED9),
-        isDark ? Colors.white : const Color(0xFF8C1810),
-      ),
-      _CalcButtonRole.equals => (colors.primary, colors.onPrimary),
-    };
-
-    final hoverBackground = Color.alphaBlend(
-      foreground.withValues(alpha: 0.08),
-      background,
-    );
-    final pressedBackground = Color.alphaBlend(
-      foreground.withValues(alpha: 0.16),
-      background,
-    );
-
-    return FilledButton.styleFrom(
-      foregroundColor: foreground,
-      shadowColor: colors.shadow.withValues(alpha: 0.22),
-      minimumSize: const Size(52, 48),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      textStyle: const TextStyle(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.2,
-      ),
-      animationDuration: const Duration(milliseconds: 100),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ).copyWith(
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) {
-          return pressedBackground;
-        }
-        if (states.contains(WidgetState.hovered)) {
-          return hoverBackground;
-        }
-        return background;
-      }),
-      elevation: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) {
-          return 0;
-        }
-        if (states.contains(WidgetState.hovered)) {
-          return role == _CalcButtonRole.equals ? 3 : 2;
-        }
-        return role == _CalcButtonRole.equals ? 2 : 1;
-      }),
-      side: WidgetStateProperty.resolveWith((states) {
-        final isFocused = states.contains(WidgetState.focused);
-        return BorderSide(
-          color: foreground.withValues(
-            alpha: isFocused ? 0.72 : (isDark ? 0.34 : 0.28),
-          ),
-          width: isFocused ? 2 : 1,
-        );
-      }),
-    );
-  }
-
   Widget buildStandaloneCalcButton(
     CalcButtonConfig button, {
     required double width,
     required double height,
     required double fontSize,
   }) {
-    Widget calcButton = FilledButton(
-      style: _calcButtonStyle(context, button),
-      onPressed: () {
-        if (button.onPressed != null) {
-          button.onPressed!(context);
-        } else {
-          _handleCalcButtonTap(button);
-        }
-      },
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Semantics(
-          label: _calcButtonSemanticsLabel(button),
-          excludeSemantics: true,
-          child: Text(
-            button.displayText,
-            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ),
-    );
-
-    if (_isDesktopPlatform && (button.tooltip?.isNotEmpty ?? false)) {
-      calcButton = Tooltip(message: button.tooltip!, child: calcButton);
-    }
-
-    return SizedBox(
+    return CalculatorButton(
+      config: button,
+      onPressed: _handleCalcButtonTap,
       width: width,
       height: height,
-      child: Focus(
-        canRequestFocus: false,
-        descendantsAreFocusable: false,
-        child: calcButton,
-      ),
+      fontSize: fontSize,
+      showTooltip: _isDesktopPlatform,
     );
   }
 
   Widget buildCalcButtonsPanel(
     List<List<CalcButtonConfig>> rows, {
     required bool isCompactLayout,
+    bool includeHexDigits = false,
     double desktopButtonWidth = 88,
     double desktopButtonHeight = 68,
   }) {
-    final columnCount = rows.fold<int>(
-      0,
-      (max, row) => math.max(max, row.length),
-    );
-    final rowCount = rows.length;
-    final effectiveColumnCount = columnCount == 0 ? 1 : columnCount;
-    final effectiveRowCount = rowCount == 0 ? 1 : rowCount;
-
-    final paddedRows = rows
-        .map<List<CalcButtonConfig?>>(
-          (row) => row.length == columnCount
-              ? row.cast<CalcButtonConfig?>()
-              : [
-                  ...row,
-                  ...List<CalcButtonConfig?>.filled(
-                    columnCount - row.length,
-                    null,
-                  ),
-                ],
-        )
-        .toList();
-
-    final flattenedButtons = paddedRows.expand((row) => row).toList();
-    final isDesktopPlatform = _isDesktopPlatform;
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        const spacing = 8.0;
-        final width = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : columnCount * desktopButtonWidth;
-        final height = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : rowCount * desktopButtonHeight;
-
-        final usableWidth = width - spacing * (effectiveColumnCount - 1);
-        final usableHeight = height - spacing * (effectiveRowCount - 1);
-        final cellWidth = usableWidth / effectiveColumnCount;
-        // A taller editor can leave little room for the keypad. Keep keys
-        // usable and scroll the grid instead of producing tiny/negative cells.
-        final cellHeight = math.max(44.0, usableHeight / effectiveRowCount);
-        final aspectRatio = cellHeight > 0 ? cellWidth / cellHeight : 1.1;
-        final double baseFontSize = cellHeight > 0
-            ? math.max(14.0, math.min(cellHeight * 0.35, 22.0))
-            : 18.0;
-
-        Widget buildButtonCell(
-          CalcButtonConfig? button, {
-          required double width,
-          required double height,
-          required double fontSize,
-        }) {
-          if (button == null) {
-            return SizedBox(width: width, height: height);
-          }
-
-          Widget calcButton = FilledButton(
-            style: _calcButtonStyle(context, button),
-            onPressed: () {
-              if (button.onPressed != null) {
-                button.onPressed!(context);
-              } else {
-                _handleCalcButtonTap(button);
-              }
-            },
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Semantics(
-                label: _calcButtonSemanticsLabel(button),
-                excludeSemantics: true,
-                child: Text(
-                  button.displayText,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          );
-
-          if (isDesktopPlatform && (button.tooltip?.isNotEmpty ?? false)) {
-            calcButton = Tooltip(message: button.tooltip!, child: calcButton);
-          }
-
-          return SizedBox(
-            width: width,
-            height: height,
-            child: Focus(
-              canRequestFocus: false,
-              descendantsAreFocusable: false,
-              child: calcButton,
-            ),
-          );
-        }
-
-        if (isDesktopPlatform && !isCompactLayout) {
-          final desktopPanelWidth =
-              effectiveColumnCount * desktopButtonWidth +
-              math.max(0, effectiveColumnCount - 1) * spacing;
-
-          return Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: desktopPanelWidth,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(paddedRows.length, (rowIndex) {
-                  final row = paddedRows[rowIndex];
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: rowIndex == paddedRows.length - 1 ? 0 : spacing,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int index = 0; index < row.length; index++) ...[
-                          if (index > 0) const SizedBox(width: spacing),
-                          buildButtonCell(
-                            row[index],
-                            width: desktopButtonWidth,
-                            height: desktopButtonHeight,
-                            fontSize: 20,
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }),
-              ),
-            ),
-          );
-        }
-
-        return GridView.builder(
-          itemCount: flattenedButtons.length,
-          shrinkWrap: true,
-          physics:
-              cellHeight * effectiveRowCount +
-                      spacing * (effectiveRowCount - 1) >
-                  height
-              ? const ClampingScrollPhysics()
-              : const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: effectiveColumnCount,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
-            childAspectRatio: aspectRatio,
-          ),
-          itemBuilder: (context, index) {
-            return buildButtonCell(
-              flattenedButtons[index],
-              width: cellWidth,
-              height: cellHeight,
-              fontSize: baseFontSize,
-            );
-          },
+        // Add a hex row only when all seven rows retain comfortable targets.
+        final minimumRowHeight = 48 * MediaQuery.textScalerOf(context).scale(1);
+        final showHexDigits =
+            includeHexDigits &&
+            constraints.maxWidth >= 480 &&
+            constraints.maxHeight >= 7 * minimumRowHeight + 6 * 8;
+        return CalculatorButtonGrid(
+          rows: showHexDigits
+              ? [rows.first, _hexDigitButtons, ...rows.skip(1)]
+              : rows,
+          onPressed: _handleCalcButtonTap,
+          compact: isCompactLayout,
+          desktop: _isDesktopPlatform,
+          desktopButtonWidth: desktopButtonWidth,
+          desktopButtonHeight: desktopButtonHeight,
         );
       },
     );
@@ -1557,9 +1249,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final adaptiveResultsExpanded =
         useWideLayout || (size.width >= 360 && size.height >= 760);
     final bool useCompactResults = switch (_resultDisplayMode) {
-      _ResultDisplayMode.adaptive => !adaptiveResultsExpanded,
-      _ResultDisplayMode.expanded => false,
-      _ResultDisplayMode.compact => true,
+      ResultDisplayMode.adaptive => !adaptiveResultsExpanded,
+      ResultDisplayMode.expanded => false,
+      ResultDisplayMode.compact => true,
     };
     final bool useCompactButtons =
         // The merged board needs 720px plus the body's horizontal padding.
@@ -1596,31 +1288,33 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
 
     final buttonPanels = _buildButtonPanels(useCompactButtons);
-    final Widget inlineCalcButton = Semantics(
-      label: 'Calculate',
-      button: true,
-      onTap: _calculateResult,
-      excludeSemantics: true,
-      child: IconButton.filled(
-        icon: const Icon(Icons.calculate_outlined),
-        tooltip: 'Calculate',
-        onPressed: _calculateResult,
+    final Widget inlineCalcButton = MergeSemantics(
+      child: Semantics(
+        label: 'Calculate',
+        button: true,
+        child: IconButton.filled(
+          icon: const Icon(Icons.calculate_outlined),
+          tooltip: 'Calculate',
+          onPressed: _calculateResult,
+        ),
       ),
     );
 
-    final Widget inlineClearButton = Semantics(
-      label: 'Clear expression',
-      button: true,
-      onTap: _clearResult,
-      excludeSemantics: true,
-      child: IconButton.filledTonal(
-        icon: const Icon(Icons.delete_sweep_outlined),
-        tooltip: 'Clear expression',
-        onPressed: _clearResult,
+    final Widget inlineClearButton = MergeSemantics(
+      child: Semantics(
+        label: 'Clear expression',
+        button: true,
+        child: IconButton.filledTonal(
+          icon: const Icon(Icons.delete_sweep_outlined),
+          tooltip: 'Clear expression',
+          onPressed: _clearResult,
+        ),
       ),
     );
 
-    final expressionBorderColor = _bracketAnalysis.hasError
+    final expressionBorderColor = isEinkTheme(context)
+        ? Colors.black
+        : _bracketAnalysis.hasError
         ? Theme.of(context).colorScheme.error
         : Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF8A858D)
@@ -1629,191 +1323,49 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       borderSide: BorderSide(color: expressionBorderColor),
     );
 
-    Widget buildResultField(
-      String label,
-      String value, {
-      bool compact = false,
-      bool isError = false,
-      bool showLabel = true,
-      Widget? labelAction,
-    }) {
-      final colorScheme = Theme.of(context).colorScheme;
-      final resultBorderColor = colorScheme.brightness == Brightness.dark
-          ? const Color(0xFF8A858D)
-          : const Color(0xFF8A858D);
-      final border = OutlineInputBorder(
-        borderSide: BorderSide(
-          color: isError ? colorScheme.error : resultBorderColor,
-        ),
-      );
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: Row(
-          children: [
-            if (showLabel)
-              SizedBox(
-                width: compact ? 90 : 110,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: compact ? 14 : 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    if (labelAction != null) labelAction,
-                  ],
-                ),
-              ),
-            Expanded(
-              child: Semantics(
-                label: '$label result',
-                value: value.isEmpty ? 'No result' : value,
-                textField: true,
-                readOnly: true,
-                excludeSemantics: true,
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: compact ? 6 : 8,
-                      horizontal: compact ? 6 : 8,
-                    ),
-                    border: border,
-                    enabledBorder: border,
-                  ),
-                  child: SelectableText(
-                    value,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: compact ? 14 : 16,
-                      color: isError ? colorScheme.error : null,
-                    ),
-                  ),
-                ),
-              ),
+    Widget buildResultsSection(bool compact) {
+      if (_containerResult case final snapshot?) {
+        return Card(
+          child: ListTile(
+            title: Text(snapshot.typeName),
+            subtitle: Text(
+              '${snapshot.totalCount} elements'
+              '${snapshot.isTruncated ? ' · partial snapshot' : ''} · Explore contents',
             ),
-            Semantics(
-              label: 'Copy $label result',
-              button: true,
-              enabled: value.isNotEmpty && value != 'Error',
-              onTap: value.isNotEmpty && value != 'Error'
-                  ? () => _copyResult(label, value)
-                  : null,
-              excludeSemantics: true,
-              child: Tooltip(
-                message: _copiedResultLabel == label
-                    ? '$label result copied'
-                    : 'Copy $label result',
-                excludeFromSemantics: true,
-                child: IconButton(
-                  icon: Icon(
-                    _copiedResultLabel == label ? Icons.check : Icons.copy,
-                    size: 20,
-                  ),
-                  onPressed: value.isNotEmpty && value != 'Error'
-                      ? () => _copyResult(label, value)
-                      : null,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Widget buildResultsSection(bool isCompactLayout) {
-      final results = <String, String>{
-        "Dec": decimalResult,
-        "Hex": hexResult,
-        "Bin": binaryResult,
-        "Float": floatResult,
-      };
-
-      if (!isCompactLayout) {
-        return Column(
-          children: [
-            buildResultField(
-              "Decimal",
-              decimalResult,
-              isError: hasCalculationError,
-              labelAction: IconButton(
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints.tightFor(
-                  width: 28,
-                  height: 28,
-                ),
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.unfold_less, size: 18),
-                tooltip: 'Show one result unit',
-                onPressed: () {
-                  setState(() {
-                    _resultDisplayMode = _ResultDisplayMode.compact;
-                  });
-                },
-              ),
-            ),
-            buildResultField("Hexadecimal", hexResult),
-            buildResultField("Binary", binaryResult),
-            buildResultField("Floating Point", floatResult),
-          ],
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showContainerExplorer(context, snapshot),
+          ),
         );
       }
-
-      final selectedValue = results[_selectedResultLabel] ?? "";
-
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children:
-                results.keys.map<Widget>((label) {
-                  return ChoiceChip(
-                    label: Text(label),
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                    selected: _selectedResultLabel == label,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedResultLabel = label;
-                      });
-                    },
-                  );
-                }).toList()..add(
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.unfold_more),
-                    tooltip: 'Show all result units',
-                    onPressed: () {
-                      setState(() {
-                        _resultDisplayMode = _ResultDisplayMode.expanded;
-                      });
-                    },
-                  ),
-                ),
-          ),
-          const SizedBox(height: 4),
-          buildResultField(
-            _selectedResultLabel,
-            selectedValue,
-            compact: true,
-            isError: hasCalculationError && _selectedResultLabel == "Dec",
-            showLabel: false,
-          ),
-        ],
+      return ResultsPanel(
+        compact: compact,
+        decimal: decimalResult,
+        hexadecimal: hexResult,
+        binary: binaryResult,
+        floatingPoint: floatResult,
+        hasCalculationError: hasCalculationError,
+        selectedLabel: _selectedResultLabel,
+        copiedLabel: _copiedResultLabel,
+        onSelectedLabelChanged: (label) {
+          setState(() => _selectedResultLabel = label);
+        },
+        onDisplayModeChanged: (mode) {
+          setState(() => _resultDisplayMode = mode);
+        },
+        onCopy: (label, value) => unawaited(_copyResult(label, value)),
       );
     }
 
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final headerActions = [
+      WindowChromeActionButton(
+        icon: Icons.share_outlined,
+        tooltip: 'Share calculation',
+        onPressed: () => showShareExpressionDialog(
+          context: context,
+          expression: _controller.text,
+        ),
+      ),
       WindowChromeActionButton(
         icon: Icons.history,
         tooltip: 'History',
@@ -1862,7 +1414,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             : Icons.dark_mode_outlined,
         tooltip: isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme',
         onPressed: () async {
-          final mode = isDarkTheme ? ThemeMode.light : ThemeMode.dark;
+          final mode = isDarkTheme ? AppTheme.light : AppTheme.dark;
           themeModeNotifier.value = mode;
           await saveThemeMode(mode);
         },
@@ -1979,59 +1531,48 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                             ),
                                           ),
                                         if (_expressionExpanded)
-                                          Semantics(
-                                            label: 'Insert newline',
-                                            button: true,
-                                            excludeSemantics: true,
-                                            onTap: () => _handleCalcButtonTap(
-                                              const CalcButtonConfig(
-                                                displayText: 'Newline',
-                                                insertText: '\n',
-                                              ),
-                                            ),
-                                            child: IconButton(
-                                              tooltip: 'Insert newline',
-                                              icon: const Icon(
-                                                Icons.keyboard_return,
-                                              ),
-                                              onPressed: () =>
-                                                  _handleCalcButtonTap(
-                                                    const CalcButtonConfig(
-                                                      displayText: 'Newline',
-                                                      insertText: '\n',
+                                          MergeSemantics(
+                                            child: Semantics(
+                                              label: 'Insert newline',
+                                              button: true,
+                                              child: IconButton(
+                                                tooltip: 'Insert newline',
+                                                icon: const Icon(
+                                                  Icons.keyboard_return,
+                                                ),
+                                                onPressed: () =>
+                                                    _handleCalcButtonTap(
+                                                      const CalcButtonConfig(
+                                                        displayText: 'Newline',
+                                                        insertText: '\n',
+                                                      ),
                                                     ),
-                                                  ),
+                                              ),
                                             ),
                                           ),
-                                        Semantics(
-                                          label: _expressionExpanded
-                                              ? 'Collapse expression editor'
-                                              : 'Expand expression editor',
-                                          button: true,
-                                          excludeSemantics: true,
-                                          onTap: () {
-                                            setState(() {
-                                              _expressionExpanded =
-                                                  !_expressionExpanded;
-                                            });
-                                            _focusNode.requestFocus();
-                                          },
-                                          child: IconButton(
-                                            tooltip: _expressionExpanded
+                                        MergeSemantics(
+                                          child: Semantics(
+                                            label: _expressionExpanded
                                                 ? 'Collapse expression editor'
                                                 : 'Expand expression editor',
-                                            icon: Icon(
-                                              _expressionExpanded
-                                                  ? Icons.unfold_less
-                                                  : Icons.unfold_more,
+                                            button: true,
+                                            child: IconButton(
+                                              tooltip: _expressionExpanded
+                                                  ? 'Collapse expression editor'
+                                                  : 'Expand expression editor',
+                                              icon: Icon(
+                                                _expressionExpanded
+                                                    ? Icons.unfold_less
+                                                    : Icons.unfold_more,
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _expressionExpanded =
+                                                      !_expressionExpanded;
+                                                });
+                                                _focusNode.requestFocus();
+                                              },
                                             ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _expressionExpanded =
-                                                    !_expressionExpanded;
-                                              });
-                                              _focusNode.requestFocus();
-                                            },
                                           ),
                                         ),
                                       ],
@@ -2068,26 +1609,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               if (!_mobileKeypad || !showCalcButtons) ...[
                                 inlineCalcButton,
                                 inlineClearButton,
-                                Semantics(
-                                  label: 'Move cursor left',
-                                  button: true,
-                                  onTap: () => _moveCursor(-1),
-                                  excludeSemantics: true,
-                                  child: IconButton.filledTonal(
-                                    icon: const Icon(Icons.arrow_left),
-                                    tooltip: 'Move cursor left',
-                                    onPressed: () => _moveCursor(-1),
+                                MergeSemantics(
+                                  child: Semantics(
+                                    label: 'Move cursor left',
+                                    button: true,
+                                    child: IconButton.filledTonal(
+                                      icon: const Icon(Icons.arrow_left),
+                                      tooltip: 'Move cursor left',
+                                      onPressed: () => _moveCursor(-1),
+                                    ),
                                   ),
                                 ),
-                                Semantics(
-                                  label: 'Move cursor right',
-                                  button: true,
-                                  onTap: () => _moveCursor(1),
-                                  excludeSemantics: true,
-                                  child: IconButton.filledTonal(
-                                    icon: const Icon(Icons.arrow_right),
-                                    tooltip: 'Move cursor right',
-                                    onPressed: () => _moveCursor(1),
+                                MergeSemantics(
+                                  child: Semantics(
+                                    label: 'Move cursor right',
+                                    button: true,
+                                    child: IconButton.filledTonal(
+                                      icon: const Icon(Icons.arrow_right),
+                                      tooltip: 'Move cursor right',
+                                      onPressed: () => _moveCursor(1),
+                                    ),
                                   ),
                                 ),
                               ],

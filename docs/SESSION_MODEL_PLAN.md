@@ -7,6 +7,11 @@ language backends.
 
 ## Goals
 
+For the concrete saved-variable and function proposal, see
+[Saved definitions plan](SAVED_DEFINITIONS_PLAN.md). It uses the existing session
+API and the current native/Wasm Clang constexpr backend; some next steps below
+predate that implementation.
+
 - Keep one reusable evaluation session per tab/workspace.
 - Let a session own backend choice, debug logging, and interpreter state.
 - Preserve a default global session for the current single-screen app flow.

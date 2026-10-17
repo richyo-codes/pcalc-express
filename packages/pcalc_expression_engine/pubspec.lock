@@ -61,9 +61,9 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: cbf6ec09e531cd773acad43677a3fe3b57c5598b
-      resolved-ref: cbf6ec09e531cd773acad43677a3fe3b57c5598b
-      url: "https://github.com/richyo-codes/dart-clang-constexpr.git"
+      ref: "483cd8144573cc3b0975c285ad2e34013191dee6"
+      resolved-ref: "483cd8144573cc3b0975c285ad2e34013191dee6"
+      url: "https://github.com/richyo-codes/clang-constexpr.dart.git"
     source: git
     version: "0.1.0"
   fake_async:
@@ -303,7 +303,7 @@ packages:
       path: "."
       ref: dc249624c25226406b527a967144e5acf463d0e8
       resolved-ref: dc249624c25226406b527a967144e5acf463d0e8
-      url: "https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git"
+      url: "https://github.com/richyo-codes/tinyexpr-plusplus-ffi.dart.git"
     source: git
     version: "1.0.0"
   typed_data:

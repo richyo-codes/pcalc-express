@@ -6,6 +6,7 @@ import 'backend_cling.dart';
 import 'backend_clang_constexpr.dart';
 import 'backend_probe.dart';
 import 'backend_repl.dart';
+import 'result_snapshot.dart';
 
 enum BackendKind {
   tinyExprFfi,
@@ -16,7 +17,7 @@ enum BackendKind {
   pureDart,
 }
 
-enum ExpressionValueKind { integer, floating, boolean, text, error }
+enum ExpressionValueKind { integer, floating, boolean, text, container, error }
 
 class ExpressionEvaluationResult {
   const ExpressionEvaluationResult({
@@ -29,7 +30,18 @@ class ExpressionEvaluationResult {
     this.isSigned,
     this.errorMessage,
     this.rawOutput,
-  });
+    this.container,
+  }) : assert((kind == ExpressionValueKind.container) == (container != null));
+
+  factory ExpressionEvaluationResult.fromContainer({
+    required BackendKind backendKind,
+    required ContainerSnapshot snapshot,
+  }) => ExpressionEvaluationResult(
+    backendKind: backendKind,
+    kind: ExpressionValueKind.container,
+    displayText: '${snapshot.typeName} · ${snapshot.totalCount} elements',
+    container: snapshot,
+  );
 
   final BackendKind backendKind;
   final ExpressionValueKind kind;
@@ -40,6 +52,7 @@ class ExpressionEvaluationResult {
   final bool? isSigned;
   final String? errorMessage;
   final String? rawOutput;
+  final ContainerSnapshot? container;
 
   bool get isError => kind == ExpressionValueKind.error;
   bool get hasNumericValue => numericValue != null;

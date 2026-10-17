@@ -1,12 +1,14 @@
 {
-    "name": "pcalc express",
-    "short_name": "pcalc express",
+    "name": "PCalc Express",
+    "short_name": "PCalc",
     "start_url": ".",
+    "scope": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
+    "background_color": "#FFFFFF",
+    "theme_color": "#B71C1C",
     "description": "Programmer-focused expression calculator.",
-    "orientation": "portrait-primary",
+    "categories": ["utilities", "productivity"],
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -4,12 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pcalc_express/calculator.dart';
+import 'package:pcalc_express/calculator_keypad.dart';
+import 'package:pcalc_express/eink_device.dart';
 import 'package:pcalc_express/input_preferences.dart';
+import 'package:pcalc_express/theme_preferences.dart';
+import 'package:pcalc_express/result_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _pumpCalculatorHarness(
   WidgetTester tester, {
   required Size surfaceSize,
   int initialPanel = 0,
+  bool eink = false,
 }) async {
   // Keep browser viewport metrics native. Overriding physical size and DPR
   // independently can briefly produce invalid web view insets during resize.
@@ -18,7 +24,7 @@ Future<void> _pumpCalculatorHarness(
 
   await tester.pumpWidget(
     MaterialApp(
-      theme: ThemeData.light(),
+      theme: eink ? buildEinkTheme() : ThemeData.light(),
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(size: surfaceSize),
         child: child!,
@@ -35,6 +41,68 @@ Future<void> _pumpCalculatorHarness(
 }
 
 void main() {
+  testWidgets(
+    'inline formats update the current result without recalculation',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await loadResultPreferences();
+      addTearDown(() {
+        floatPrecisionNotifier.value = null;
+        hexGroupDigitsNotifier.value = 2;
+        hexPrefixNotifier.value = false;
+      });
+      await _pumpCalculatorHarness(tester, surfaceSize: const Size(900, 900));
+      await tester.enterText(find.byType(TextField), '43707 + 0.125');
+      await tester.tap(find.widgetWithText(FilledButton, '=').first);
+      await tester.pumpAndSettle();
+      expect(find.text('43707.125'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'unfinished');
+      await tester.tap(find.byTooltip('Floating point precision'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<int>, '2 decimal places'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('43707.13'), findsOneWidget);
+      await tester.tap(find.byTooltip('Floating point precision'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<int>, 'Auto precision'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('43707.125'), findsOneWidget);
+      await tester.tap(find.byTooltip('Hexadecimal formatting'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<int>, 'Show 0x prefix'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('0xAA BB'), findsOneWidget);
+      await tester.tap(find.byTooltip('Hexadecimal formatting'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<int>, 'No spacing'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('0xAABB'), findsOneWidget);
+      await _pumpCalculatorHarness(tester, surfaceSize: const Size(360, 740));
+      await tester.tap(find.byTooltip('Show one result unit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Float'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Floating point precision'), findsOneWidget);
+      expect(find.text('43707.125'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Hex'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Hexadecimal formatting'), findsOneWidget);
+      expect(find.text('0xAABB'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'unfinished',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   for (final keyboardEnabled in [false, true]) {
     testWidgets(
       'editor expands on first unfocused mouse click (keyboard $keyboardEnabled)',
@@ -212,14 +280,19 @@ void main() {
     await tester.pump();
     expect(tester.getSize(field).width, greaterThan(350));
 
-    await tester.tap(find.text('0x ▾'));
+    await tester.tap(find.text('More ▾'));
     await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'F'));
     await tester.tap(find.widgetWithText(ElevatedButton, 'F'));
     await tester.pumpAndSettle();
     expect(controller.text, '0xF+1');
     expect(controller.selection.extentOffset, 3);
 
-    await tester.tap(find.text('& ▾'));
+    await tester.tap(find.text('More ▾'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Bitwise'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '<<'));
     await tester.pumpAndSettle();
@@ -313,6 +386,128 @@ void main() {
     await expectLater(
       find.byType(CalculatorScreen),
       matchesGoldenFile('goldens/calculator_phone_keypad.png'),
+    );
+  });
+
+  testWidgets(
+    'e-ink General has outlined keys and inserts space at selection',
+    (tester) async {
+      await _pumpCalculatorHarness(
+        tester,
+        surfaceSize: const Size(600, 800),
+        eink: true,
+      );
+      final field = find.byType(TextField);
+      await tester.enterText(field, '123');
+      final controller = tester.widget<TextField>(field).controller!;
+      controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 2,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'SPACE').first);
+      await tester.pump();
+      expect(controller.text, '1 3');
+      expect(controller.selection.extentOffset, 2);
+      final key = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '7'),
+      );
+      expect(key.style!.backgroundColor!.resolve({}), Colors.white);
+      expect(key.style!.foregroundColor!.resolve({}), Colors.black);
+      expect(key.style!.elevation!.resolve({}), 0);
+      await tester.tap(find.text('More ▾'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(Dialog),
+        matchesGoldenFile('goldens/operators_eink.png'),
+      );
+      await tester.tap(find.byTooltip('Close operators'));
+      await tester.pumpAndSettle();
+      expect(controller.text, '1 3');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('reader layout exposes editing and programmer rows', (
+    tester,
+  ) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(600, 900));
+
+    Offset keyCenter(String label) =>
+        tester.getCenter(find.widgetWithText(FilledButton, label).first);
+
+    final top = keyCenter('AC').dy;
+    for (final label in ['(', ')', '←', '→', 'DEL']) {
+      expect(keyCenter(label).dy, top);
+    }
+    final programmerRow = keyCenter('0x').dy;
+    for (final label in ['0b', '<<', '>>', '&', 'More ▾']) {
+      expect(keyCenter(label).dy, programmerRow);
+    }
+    expect(programmerRow, greaterThan(top));
+    expect(programmerRow, lessThan(keyCenter('7').dy));
+
+    final bottom = keyCenter('=').dy;
+    expect(keyCenter('SPACE').dy, bottom);
+    expect(keyCenter('=').dx, greaterThan(keyCenter('SPACE').dx));
+  });
+
+  testWidgets(
+    'roomy General keypad inserts hex digits without changing panels',
+    (tester) async {
+      await _pumpCalculatorHarness(
+        tester,
+        surfaceSize: const Size(600, 1000),
+        eink: true,
+      );
+      final controller = tester
+          .widget<TextField>(find.byType(TextField).first)
+          .controller!;
+      controller.text = '0x + 1';
+      controller.selection = const TextSelection.collapsed(offset: 2);
+      final row = tester.getCenter(find.widgetWithText(FilledButton, 'A')).dy;
+      for (final digit in ['A', 'B', 'C', 'D', 'E', 'F']) {
+        final key = find.widgetWithText(FilledButton, digit);
+        expect(tester.getCenter(key).dy, row);
+        expect(tester.getSize(key).height, greaterThanOrEqualTo(48));
+        await tester.tap(key);
+        await tester.pump();
+      }
+      expect(controller.text, '0xABCDEF + 1');
+      expect(controller.selection.extentOffset, 8);
+      expect(
+        row,
+        lessThan(tester.getCenter(find.widgetWithText(FilledButton, '0x')).dy),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('short General keypad does not squeeze in a hex row', (
+    tester,
+  ) async {
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(600, 650));
+    final grid = tester.widget<CalculatorButtonGrid>(
+      find.byType(CalculatorButtonGrid).first,
+    );
+    expect(
+      grid.rows.expand((row) => row).map((key) => key.displayText),
+      isNot(contains('A')),
+    );
+    await tester.drag(find.byType(GridView).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'SPACE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('detected e-ink devices disable keypad page swiping', (
+    tester,
+  ) async {
+    einkDeviceNotifier.value = true;
+    addTearDown(() => einkDeviceNotifier.value = false);
+    await _pumpCalculatorHarness(tester, surfaceSize: const Size(600, 900));
+    expect(
+      tester.widget<PageView>(find.byType(PageView)).physics,
+      isA<NeverScrollableScrollPhysics>(),
     );
   });
 

@@ -53,6 +53,10 @@ class HelpScreen extends StatelessWidget {
                     style: TextStyle(fontFamily: 'monospace', height: 1.8),
                   ),
                   const _HelpSection(
+                    'Byte order (Clang C++17 or newer)',
+                    'Use htons/ntohs for 16-bit network conversions and htonl/ntohl for 32-bit. Network order is big-endian; host means the calculator’s fixed little-endian target, not your device. bswap16/32/64 reverse bytes. htobe16/32/64, be16/32/64toh, htole16/32/64, and le16/32/64toh provide explicit conversions. These calculator constexpr helpers accept integers, truncate to the named width, and return unsigned values. For example, htons(0x1234) gives 0x3412. Find them in the Endian operator group.',
+                  ),
+                  const _HelpSection(
                     'Read the results',
                     'Decimal, hexadecimal, binary, and floating-point views show the result in different formats. Use the copy button beside a value to copy it. Typed backends supply integer width and signedness, which affect the bit representation. In compact layouts, select a result tab or use Show all result units to expand.',
                   ),

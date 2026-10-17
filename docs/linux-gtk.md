@@ -12,8 +12,8 @@ Selecting GTK4 does not make an official GTK3 engine compatible with GTK4.
 With the standard Flutter SDK on PATH:
 
 ```sh
-bash tool/flutter_linux.sh gtk3 run
-bash tool/flutter_linux.sh gtk3 build --release
+bash tools/flutter_linux.sh gtk3 run
+bash tools/flutter_linux.sh gtk3 build --release
 ```
 
 For the custom GTK4 SDK, supply your own checkout locations:
@@ -21,8 +21,8 @@ For the custom GTK4 SDK, supply your own checkout locations:
 ```sh
 export FLUTTER_BIN=/path/to/flutter-gtk4/bin/flutter
 export LOCAL_ENGINE_SRC=/path/to/flutter-gtk4/engine/src
-bash tool/flutter_linux.sh gtk4 run
-bash tool/flutter_linux.sh gtk4 build --debug
+bash tools/flutter_linux.sh gtk4 run
+bash tools/flutter_linux.sh gtk4 build --debug
 ```
 
 The default local engine is `host_debug_unopt`. For profile/release builds,
@@ -30,7 +30,7 @@ set `LOCAL_ENGINE` and, if different, `LOCAL_ENGINE_HOST` to matching compiled
 engine configurations. A debug engine cannot produce a release build.
 The wrapper checks for the selected engine library before invoking Flutter.
 
-`tool/gtk3_build.sh` and `tool/gtk4_build.sh` are development-run shortcuts,
+`tools/gtk3_build.sh` and `tools/gtk4_build.sh` are development-run shortcuts,
 matching the reference project's naming. The wrapper passes arguments through.
 Do not supply a conflicting `--linux-gtk` argument.
 
@@ -39,7 +39,7 @@ Do not supply a conflicting `--linux-gtk` argument.
 CMake resolves the variant from `FLUTTER_LINUX_GTK`, then an explicit
 `-DLINUX_GTK_VARIANT`, then the ignored `linux/.gtk_variant.cmake` file,
 and otherwise defaults to GTK3. The wrapper selects one build without changing
-the saved preference. `bash tool/configure_linux_variant.sh gtk3` (or `gtk4`)
+the saved preference. `bash tools/configure_linux_variant.sh gtk3` (or `gtk4`)
 writes that local CMake preference; it does not select or install a Flutter engine.
 Prefer the wrapper to keep Flutter and CMake aligned.
 
@@ -75,25 +75,32 @@ Existing Linux and Flatpak jobs remain GTK3 and need their existing GTK3
 runtime libraries. The additional GTK4 CI
 bundle is separate from the normal Linux and Flatpak artifacts.
 
+The GTK4 job also exports a [GTK4 Flatpak](flatpak.md) using GNOME 51, on the
+`gtk4` Flatpak branch, as `pcalc-express-flatpak-gtk4`.
+
 ## Precompiled GTK4 CI
 
 The `linux_gtk4` job follows the reference project's FVM setup: FVM 4.2.0,
 a registered `richyo-codes` fork, and a pinned SDK revision. It does not compile
 the Flutter engine or modify the repository's default `.fvmrc` outside the job.
 
-- Branch: `3.48.0-gtk4.issue94804.20260911`
-- Framework revision: `280e8df0ab1f91a87078de00705b61b8d47d8719`
-- Prebuilt engine ID: `61dae0cb8f6752dae2404a6c142737f04df2592e`
+- Branch: `3.48.0-gtk4.issue94804.20260925`
+- Framework revision: `1e75e574e6a580fff095ebe83343276fd29df100`
+- Prebuilt engine ID: `409396163af31148a9f408ecd1db41acdb1e0e76`
+
+This framework revision handles `SemanticsRole.slider` from the published
+engine. The earlier September 11 revision fails during Dart compilation with
+an incomplete semantics-role switch.
 
 The job sets these before FVM installs or runs Flutter:
 
 ```sh
-export FLUTTER_PREBUILT_ENGINE_VERSION=61dae0cb8f6752dae2404a6c142737f04df2592e
+export FLUTTER_PREBUILT_ENGINE_VERSION=409396163af31148a9f408ecd1db41acdb1e0e76
 export FLUTTER_ENGINE_STORAGE_BASE_URL=https://pub-79a02b1963fb4da6b5e4e4816e8b7146.r2.dev
 ```
 
 The installer downloads and validates the three standard Linux engine archives
-from R2 with [`tool/install_gtk4_prebuilt_engine.sh`](../tool/install_gtk4_prebuilt_engine.sh).
+from R2 with [`tools/install_gtk4_prebuilt_engine.sh`](../tools/install_gtk4_prebuilt_engine.sh).
 It intentionally does not globally set `FLUTTER_STORAGE_BASE_URL`: the bucket
 holds custom engine artifacts, while Flutter's default storage continues to
 provide common assets such as Material fonts.
@@ -122,8 +129,8 @@ variables plus `FLUTTER_BIN` pointing to the matching fork, without
 `LOCAL_ENGINE_SRC`. Run the installer once after the SDK is initialized:
 
 ```sh
-bash tool/install_gtk4_prebuilt_engine.sh "$(dirname "$(dirname "$FLUTTER_BIN")")"
-bash tool/flutter_linux.sh gtk4 build --release
+bash tools/install_gtk4_prebuilt_engine.sh "$(dirname "$(dirname "$FLUTTER_BIN")")"
+bash tools/flutter_linux.sh gtk4 build --release
 ```
 
 ## Validation

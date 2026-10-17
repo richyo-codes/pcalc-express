@@ -42,6 +42,8 @@ dependencies:
   ffi: ^2.1.4
   url_launcher: ^6.3.2
   shared_preferences: ^2.5.3
+  share_plus: ^13.3.0
+  qr_flutter: ^4.1.0
 
 dependency_overrides:
   # Dual GTK3/GTK4 implementation, shared with the dual-runner reference app.

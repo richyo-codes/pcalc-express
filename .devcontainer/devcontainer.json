@@ -1,0 +1,19 @@
+{
+  "name": "PCalc task workspace",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "vscode",
+  "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
+  "containerEnv": { "CMAKE_BUILD_PARALLEL_LEVEL": "2" },
+  "remoteEnv": { "PUB_CACHE": "${containerWorkspaceFolder}/.devcache/pub" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": { "label": "Calculator preview", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["Dart-Code.flutter"],
+      "settings": { "dart.flutterSdkPath": "/opt/flutter" }
+    }
+  }
+}

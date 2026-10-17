@@ -1,0 +1,121 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 579021c..2bc91d6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,7 @@ include(GNUInstallDirs)
+ 
+ option(PCALC_CONSTEXPR_BUILD_SHARED "Build the C ABI as a shared library" ON)
+ option(PCALC_CONSTEXPR_ENABLE_IPO "Enable interprocedural optimization" OFF)
++set(PCALC_LIBCXX_BUNDLE "" CACHE FILEPATH "Experimental generated libc++ header bundle")
+ 
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+@@ -42,6 +43,9 @@ target_include_directories(dart_clang_constexpr
+ 
+ target_compile_definitions(dart_clang_constexpr PRIVATE ${LLVM_DEFINITIONS})
+ target_compile_definitions(dart_clang_constexpr PRIVATE PCALC_CONSTEXPR_BUILDING_LIBRARY)
++if(PCALC_LIBCXX_BUNDLE)
++  target_compile_definitions(dart_clang_constexpr PRIVATE PCALC_LIBCXX_BUNDLE="${PCALC_LIBCXX_BUNDLE}")
++endif()
+ if(NOT LLVM_ENABLE_RTTI)
+   target_compile_options(dart_clang_constexpr PRIVATE -fno-rtti)
+ endif()
+@@ -49,6 +53,9 @@ if(NOT LLVM_ENABLE_EH)
+   target_compile_options(dart_clang_constexpr PRIVATE -fno-exceptions)
+ endif()
+ if(TARGET clangFrontend)
++  if(PCALC_LIBCXX_BUNDLE)
++    target_link_libraries(dart_clang_constexpr PUBLIC clangFrontend)
++  endif()
+   target_link_libraries(dart_clang_constexpr PUBLIC
+     clangParse
+     clangSema
+diff --git a/src/evaluator.cpp b/src/evaluator.cpp
+index 55e105f..0ccb926 100644
+--- a/src/evaluator.cpp
++++ b/src/evaluator.cpp
+@@ -7,6 +7,13 @@
+ #include "clang/AST/Expr.h"
+ #include "clang/Basic/Diagnostic.h"
+ #include "clang/Basic/DiagnosticOptions.h"
++#ifdef PCALC_LIBCXX_BUNDLE
++#include "clang/Frontend/Utils.h"
++#include "clang/Frontend/FrontendOptions.h"
++#include "clang/Basic/CodeGenOptions.h"
++#include "clang/Serialization/PCHContainerOperations.h"
++#include PCALC_LIBCXX_BUNDLE
++#endif
+ #include "clang/Basic/FileManager.h"
+ #include "clang/Basic/LangOptions.h"
+ #include "clang/Basic/SourceManager.h"
+@@ -373,6 +380,10 @@ public:
+         source_manager_(diagnostics_, file_manager_) {
+     target_options_ = std::make_shared<clang::TargetOptions>();
+     target_options_->Triple = "wasm32-unknown-unknown";
++#ifdef PCALC_LIBCXX_BUNDLE
++    if (configuration.is_cxx)
++      target_options_->Triple = "wasm32-unknown-emscripten";
++#endif
+     target_ =
+         clang::TargetInfo::CreateTargetInfo(diagnostics_, *target_options_);
+     if (!target_)
+@@ -397,12 +408,34 @@ public:
+     header_search_ = std::make_unique<clang::HeaderSearch>(
+         header_search_options_, source_manager_, diagnostics_,
+         language_options_, target_.get());
++#ifdef PCALC_LIBCXX_BUNDLE
++    if (configuration.is_cxx) {
++      for (const auto &header : kPcalcBundledHeaders)
++        filesystem_->addFile(header.path, 0,
++            llvm::MemoryBuffer::getMemBuffer(header.content, header.path));
++      header_search_options_.UseBuiltinIncludes = false;
++      header_search_options_.UseStandardSystemIncludes = false;
++      header_search_options_.UseStandardCXXIncludes = false;
++      header_search_options_.AddPath("/pcalc/sysroot/include/compat", clang::frontend::System, false, false);
++      header_search_options_.AddPath("/pcalc/sysroot/include/c++/v1", clang::frontend::System, false, false);
++      header_search_options_.AddPath("/pcalc/resource/include", clang::frontend::System, false, false);
++      header_search_options_.AddPath("/pcalc/sysroot/include", clang::frontend::System, false, false);
++      clang::ApplyHeaderSearchOptions(*header_search_, header_search_options_, language_options_, triple);
++    }
++#endif
+     preprocessor_ = std::make_unique<clang::Preprocessor>(
+         preprocessor_options_, diagnostics_, language_options_, source_manager_,
+         *header_search_, module_loader_);
+     preprocessor_->Initialize(*target_);
+     preprocessor_->getBuiltinInfo().initializeBuiltins(
+         preprocessor_->getIdentifierTable(), language_options_);
++#ifdef PCALC_LIBCXX_BUNDLE
++    if (configuration.is_cxx) {
++      clang::RawPCHContainerReader reader;
++      clang::InitializePreprocessor(*preprocessor_, preprocessor_options_, reader,
++          clang::FrontendOptions(), clang::CodeGenOptions());
++    }
++#endif
+     context_ = std::make_unique<clang::ASTContext>(
+         language_options_, source_manager_, preprocessor_->getIdentifierTable(),
+         preprocessor_->getSelectorTable(), preprocessor_->getBuiltinInfo(),
+@@ -497,7 +530,14 @@ pcalc_constexpr_evaluate_language(int32_t language, const char *expression,
+       is_cxx ? "constexpr auto __pcalc_result = (\n" + input + "\n);"
+              : "static const __typeof__((\n" + input + "\n)) __pcalc_result = (\n" +
+                    input + "\n);";
+-  const std::string source = aliases + prelude + declaration;
++  std::string source = aliases + prelude + declaration;
++#ifdef PCALC_LIBCXX_BUNDLE
++  if (is_cxx) {
++    source = "#include <cstdint>\n#include <limits>\n#include <bit>\n"
++             "#include <numeric>\n#include <algorithm>\n#include <array>\n"
++             "#include <numbers>\n#include <vector>\n#include <deque>\n" + declaration;
++  }
++#endif
+ 
+   ParsedTranslationUnit translation_unit(source, *configuration);
+   if (!translation_unit.valid()) {
+@@ -512,7 +552,7 @@ pcalc_constexpr_evaluate_language(int32_t language, const char *expression,
+     return result->status;
+   }
+ 
+-  clang::Expr *initializer = variable->getInit()->IgnoreImplicit();
++  clang::Expr *initializer = variable->getInit();
+   clang::Expr::EvalResult evaluated;
+   if (!initializer->EvaluateAsConstantExpr(evaluated, context)) {
+     fail(*result, "expression is not a supported constant expression");

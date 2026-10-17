@@ -119,7 +119,7 @@ jobs:
           sudo apt-get install -y \
             clang libclang-dev llvm-dev libclang-22-dev llvm-22-dev cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
             libstdc++-12-dev lld git unzip xz-utils zip libglu1-mesa \
-            libsecret-1-dev libssl-dev
+            libsecret-1-dev libssl-dev dpkg-dev rpm patchelf
 
       - name: Select matching LLVM and Clang CMake packages
         shell: bash
@@ -149,6 +149,9 @@ jobs:
       - name: Build Linux release
         run: flutter build linux --release
 
+      - name: Build Debian and RPM packages
+        run: bash ./tools/build_linux_packages.sh build/linux/packages "${{ steps.version.outputs.semver }}" gtk3
+
       - name: Upload Linux artifact
         if: github.event_name != 'pull_request'
         uses: richnetdesign/git-artifact-upload@v2
@@ -160,15 +163,37 @@ jobs:
           append-max-detail-suffix: true
           retention-days: 7
 
+      - name: Upload Debian package
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: pcalc-express-linux-deb
+          filename: pcalc-express-linux-deb
+          version: ${{ steps.version.outputs.semver }}
+          path: build/linux/packages/deb/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+      - name: Upload RPM package
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: pcalc-express-linux-rpm
+          filename: pcalc-express-linux-rpm
+          version: ${{ steps.version.outputs.semver }}
+          path: build/linux/packages/rpm/
+          append-max-detail-suffix: true
+          retention-days: 7
+
   linux_gtk4:
     name: Linux GTK4 (prebuilt custom Flutter)
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       FLUTTER_GTK4_REPOSITORY: https://github.com/richyo-codes/flutter.git
-      FLUTTER_GTK4_BRANCH: 3.48.0-gtk4.issue94804.20260911
-      FLUTTER_GTK4_SHA: 280e8df0ab1f91a87078de00705b61b8d47d8719
-      FLUTTER_PREBUILT_ENGINE_VERSION: 61dae0cb8f6752dae2404a6c142737f04df2592e
+      FLUTTER_GTK4_BRANCH: 3.48.0-gtk4.issue94804.20260925
+      FLUTTER_GTK4_SHA: 1e75e574e6a580fff095ebe83343276fd29df100
+      FLUTTER_PREBUILT_ENGINE_VERSION: 409396163af31148a9f408ecd1db41acdb1e0e76
       FLUTTER_ENGINE_STORAGE_BASE_URL: https://pub-79a02b1963fb4da6b5e4e4816e8b7146.r2.dev
       FLUTTER_LINUX_GTK: gtk4
     steps:
@@ -190,7 +215,8 @@ jobs:
             clang libclang-dev llvm-dev libclang-22-dev llvm-22-dev \
             cmake ninja-build pkg-config libgtk-4-dev liblzma-dev \
             libstdc++-12-dev lld curl git unzip xz-utils zip libglu1-mesa \
-            libsecret-1-dev libssl-dev libmimalloc-dev
+            libsecret-1-dev libssl-dev libmimalloc-dev dpkg-dev rpm patchelf \
+            flatpak flatpak-builder dbus-user-session
 
       - name: Set up Dart for FVM
         uses: dart-lang/setup-dart@v1
@@ -225,7 +251,7 @@ jobs:
           set -euo pipefail
           test "$(git -C .fvm/flutter_sdk rev-parse HEAD)" = "$FLUTTER_GTK4_SHA"
           test "$(cat .fvm/flutter_sdk/bin/cache/engine.stamp)" = "$FLUTTER_PREBUILT_ENGINE_VERSION"
-          bash ./tool/install_gtk4_prebuilt_engine.sh .fvm/flutter_sdk
+          bash ./tools/install_gtk4_prebuilt_engine.sh .fvm/flutter_sdk
           fvm flutter config --enable-linux-desktop
           # R2 provides the custom engine artifacts. Flutter's normal storage
           # still supplies shared assets such as Material fonts.
@@ -237,7 +263,7 @@ jobs:
           fi
 
       - name: Select GTK4 Linux runner
-        run: bash ./tool/configure_linux_variant.sh gtk4
+        run: bash ./tools/configure_linux_variant.sh gtk4
 
       - name: Install Flutter dependencies
         run: fvm flutter pub get
@@ -266,6 +292,25 @@ jobs:
             "$FLUTTER_PREBUILT_ENGINE_VERSION" "$FLUTTER_ENGINE_STORAGE_BASE_URL" \
             > "$bundle/BUILD_INFO.txt"
 
+      - name: Build GTK4 Debian and RPM packages
+        env:
+          PCALC_LINUX_BUNDLE: ${{ github.workspace }}/build/linux-gtk4/x64/release/bundle
+        run: bash ./tools/build_linux_packages.sh build/linux-gtk4/packages "${{ steps.version.outputs.semver }}" gtk4
+
+      - name: Build GTK4 Flatpak
+        run: bash ./tools/build_flatpak_gtk4.sh --bundle-dir build/linux-gtk4/x64/release/bundle --out-dir "$RUNNER_TEMP/pcalc-express-flatpak-gtk4"
+
+      - name: Upload GTK4 Flatpak artifact
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: pcalc-express-flatpak-gtk4
+          filename: pcalc-express-flatpak-gtk4
+          version: ${{ steps.version.outputs.semver }}
+          path: ${{ runner.temp }}/pcalc-express-flatpak-gtk4/ca.richyoung.pcalcexpress.gtk4.flatpak
+          append-max-detail-suffix: true
+          retention-days: 7
+
       - name: Upload Linux GTK4 artifact
         if: github.event_name != 'pull_request'
         uses: richnetdesign/git-artifact-upload@v2
@@ -274,6 +319,28 @@ jobs:
           filename: pcalc-express-linux-x64-gtk4
           version: ${{ steps.version.outputs.semver }}
           path: build/linux-gtk4/x64/release/bundle/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+      - name: Upload Linux GTK4 Debian package
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: pcalc-express-linux-gtk4-deb
+          filename: pcalc-express-linux-gtk4-deb
+          version: ${{ steps.version.outputs.semver }}
+          path: build/linux-gtk4/packages/deb/
+          append-max-detail-suffix: true
+          retention-days: 7
+
+      - name: Upload Linux GTK4 RPM package
+        if: github.event_name != 'pull_request'
+        uses: richnetdesign/git-artifact-upload@v2
+        with:
+          name: pcalc-express-linux-gtk4-rpm
+          filename: pcalc-express-linux-gtk4-rpm
+          version: ${{ steps.version.outputs.semver }}
+          path: build/linux-gtk4/packages/rpm/
           append-max-detail-suffix: true
           retention-days: 7
 

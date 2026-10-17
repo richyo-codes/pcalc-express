@@ -3,6 +3,12 @@
 Build and test instructions for PCalc Express. For features and examples, see
 [the README](../README.md).
 
+For a containerized toolchain and per-task agent branches, see
+[portable task workspaces](TASK_WORKSPACES.md).
+
+The [container result explorer](CONTAINER_RESULTS.md) documents the structured
+snapshot contract, UI tests, and the remaining evaluator integration boundary.
+
 ## Native development
 
 ```bash
@@ -21,6 +27,8 @@ For the optional GTK4 runner, engine selection, and native window sizing, see
 [Linux GTK3 / GTK4 development](linux-gtk.md). GTK3 remains the default.
 For widget semantics and real GTK4 AT-SPI validation, see
 [Accessibility](accessibility.md).
+For local and CI-native DEB/RPM generation, see
+[Debian and RPM packages](linux-packages.md).
 
 ## Flatpak
 
@@ -93,3 +101,18 @@ will deploy the calculator at the repository's Pages URL.
 The deployment requires the browser smoke test and release build to pass.
 Keypad rendering checks run separately with `continue-on-error`, so visual
 golden differences do not block publication.
+
+The web build is installable as a PWA. `web/manifest.json` supplies installation
+metadata and icons, while `web/service_worker.js` provides same-origin offline
+caching. Test installation and offline startup from a release build served over
+HTTPS or localhost; Flutter's development server is not the deployment bundle.
+The bootstrap loads the bundled renderer locally. Open the app online first to
+cache its resources; features whose assets have never loaded may still require
+a connection. Increment the service worker cache version when changing its
+cache strategy.
+
+The Share calculation action offers a QR code, Copy link, and the platform
+share sheet. Shared links open the hosted calculator with the expression filled
+in; the recipient explicitly runs the calculation. Native Android uses the
+system sharing chooser. The hosted version must include this feature before
+expression links can be opened by recipients.

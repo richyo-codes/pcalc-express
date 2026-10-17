@@ -62,7 +62,30 @@ String formatBinaryResult(
       .trim();
 }
 
-String formatFloatResult(double value) {
-  // Format float with 6 decimal places
-  return value.toStringAsFixed(6);
+String formatFloatResult(double value, {int? decimalPlaces = 6}) {
+  return decimalPlaces == null
+      ? value.toString()
+      : value.toStringAsFixed(decimalPlaces);
+}
+
+String formatHexDisplay(
+  String hex, {
+  int groupDigits = 2,
+  bool showPrefix = false,
+}) {
+  final digits = hex.replaceAll(' ', '');
+  if (digits.isEmpty) return '';
+  final groups = <String>[];
+  if (groupDigits > 0) {
+    // Group from the least significant end, preserving the original bit width.
+    for (var end = digits.length; end > 0; end -= groupDigits) {
+      groups.insert(
+        0,
+        digits.substring((end - groupDigits).clamp(0, end), end),
+      );
+    }
+  } else {
+    groups.add(digits);
+  }
+  return '${showPrefix ? '0x' : ''}${groups.join(' ')}';
 }

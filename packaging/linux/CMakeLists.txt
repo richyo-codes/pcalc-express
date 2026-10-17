@@ -1,0 +1,88 @@
+cmake_minimum_required(VERSION 3.20)
+project(pcalc_express_packages LANGUAGES NONE)
+
+set(CMAKE_INSTALL_BINDIR bin)
+set(CMAKE_INSTALL_LIBDIR lib)
+set(CMAKE_INSTALL_DATADIR share)
+set(CMAKE_INSTALL_DOCDIR share/doc/${PROJECT_NAME})
+
+if(NOT DEFINED PCALC_BUNDLE_DIR OR NOT IS_DIRECTORY "${PCALC_BUNDLE_DIR}")
+  message(FATAL_ERROR "Set PCALC_BUNDLE_DIR to a Flutter Linux bundle")
+endif()
+if(NOT DEFINED PCALC_PACKAGE_VERSION OR PCALC_PACKAGE_VERSION STREQUAL "")
+  message(FATAL_ERROR "Set PCALC_PACKAGE_VERSION")
+endif()
+if(NOT DEFINED PCALC_PACKAGE_RELEASE OR PCALC_PACKAGE_RELEASE STREQUAL "")
+  set(PCALC_PACKAGE_RELEASE 1)
+endif()
+if(NOT DEFINED PCALC_PACKAGE_NAME OR PCALC_PACKAGE_NAME STREQUAL "")
+  set(PCALC_PACKAGE_NAME "pcalc-express")
+endif()
+
+install(
+  DIRECTORY "${PCALC_BUNDLE_DIR}/"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pcalc-express"
+  USE_SOURCE_PERMISSIONS
+)
+install(PROGRAMS pcalc-express DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(
+  FILES ca.richyoung.pcalcexpress.desktop
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
+)
+install(
+  FILES "${CMAKE_CURRENT_LIST_DIR}/../../assets/icons/app_icon_512.png"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps"
+  RENAME ca.richyoung.pcalcexpress.png
+)
+install(
+  FILES "${CMAKE_CURRENT_LIST_DIR}/../../flatpak/ca.richyoung.pcalcexpress.metainfo.xml"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo"
+)
+install(
+  FILES "${CMAKE_CURRENT_LIST_DIR}/../../LICENSE"
+  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+)
+
+set(CPACK_PACKAGE_NAME "${PCALC_PACKAGE_NAME}")
+set(CPACK_PACKAGE_VENDOR "Rich Young")
+set(CPACK_PACKAGE_CONTACT "code@richyoung.ca")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Programmer calculator with C-like expressions")
+set(CPACK_PACKAGE_HOMEPAGE_URL
+    "https://github.com/richyo-codes/pcalc-express")
+set(CPACK_PACKAGE_VERSION "${PCALC_PACKAGE_VERSION}")
+set(CPACK_PACKAGE_CHECKSUM SHA256)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/../../LICENSE")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
+
+set(CPACK_DEBIAN_PACKAGE_RELEASE "${PCALC_PACKAGE_RELEASE}")
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+set(CPACK_RPM_PACKAGE_RELEASE "${PCALC_PACKAGE_RELEASE}")
+set(CPACK_RPM_PACKAGE_LICENSE "AGPL-3.0-only")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Engineering")
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+
+if(PCALC_PACKAGE_NAME STREQUAL "pcalc-express-gtk4")
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS
+      "libgtk-4-1, libglib2.0-0, libstdc++6, libclang-cpp22, libllvm22")
+  set(CPACK_DEBIAN_PACKAGE_CONFLICTS "pcalc-express")
+  set(CPACK_DEBIAN_PACKAGE_REPLACES "pcalc-express")
+  set(CPACK_DEBIAN_PACKAGE_PROVIDES "pcalc-express")
+  set(CPACK_RPM_PACKAGE_CONFLICTS "pcalc-express")
+  set(CPACK_RPM_PACKAGE_REQUIRES "gtk4")
+  set(CPACK_RPM_PACKAGE_PROVIDES "pcalc-express")
+else()
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS
+      "libgtk-3-0 | libgtk-3-0t64, libglib2.0-0, libstdc++6, libclang-cpp22, libllvm22")
+  set(CPACK_DEBIAN_PACKAGE_CONFLICTS "pcalc-express-gtk4")
+  set(CPACK_RPM_PACKAGE_CONFLICTS "pcalc-express-gtk4")
+endif()
+
+set(CPACK_RPM_SPEC_MORE_DEFINE "%define _tmppath /tmp")
+
+include(CPack)

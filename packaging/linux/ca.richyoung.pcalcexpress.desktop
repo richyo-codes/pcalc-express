@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=pcalc express
+Comment=Programmer-focused expression calculator
+Exec=pcalc-express
+Icon=ca.richyoung.pcalcexpress
+Terminal=false
+Type=Application
+Categories=Utility;Calculator;
+StartupNotify=true
+StartupWMClass=ca.richyoung.pcalcexpress

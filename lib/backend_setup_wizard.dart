@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pcalc_expression_engine/pcalc_expression_engine.dart';
 import 'package:pcalc_express/backend_preferences.dart';
 import 'package:pcalc_express/calculator.dart';
+import 'package:pcalc_express/theme_preferences.dart';
 
 class BackendSetupGate extends StatefulWidget {
   const BackendSetupGate({
@@ -47,8 +48,10 @@ class _BackendSetupGateState extends State<BackendSetupGate> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ProgrammerCalculator(key: ValueKey(_backendApplied));
+  Widget build(BuildContext context) => CalculatorScreen(
+    key: ValueKey(_backendApplied),
+    themeColor: appThemeColor,
+  );
 }
 
 class BackendSetupWizard extends StatefulWidget {

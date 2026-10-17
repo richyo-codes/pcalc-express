@@ -34,6 +34,10 @@ standard in **Settings → Advanced**.
 
 Decimal, hexadecimal, binary, and floating-point results each have a copy button.
 Integer width and signedness follow the result type supplied by the evaluator.
+Use the control beside Hex to choose byte/word spacing or a `0x` prefix.
+The Float precision menu offers Auto or 0, 2, 4, 6, 8, or 12 decimal places.
+Formatting choices are saved, update the current result without recalculating,
+and apply when copying the display.
 `^` means XOR; shifts require integers. Standard-library headers and functions
 are not generally available.
 Invoked lambdas can contain local variables, loops, and recursion when permitted
@@ -48,25 +52,34 @@ are not accepted; results must be numeric constant expressions.
   is available when using the calculator keypad. Drag the grip below the expanded
   editor to resize it. Collapse keeps your text and chosen height.
 - The keypad inserts at the cursor. **←/→**, **DEL**, and **AC** handle editing.
-- On narrow screens, **0x ▾** opens hex digits and prefixes; **& ▾** opens bitwise
-  and logical operators. The expression gets the full row.
+- General includes **SPACE** beside the parentheses. **More ▾** opens a centered
+  operator palette with Numbers, Bitwise, Logic, and Math categories.
 - Syntax coloring and bracket matching help you read nested expressions.
 - Reuse calculations from session history, expand or collapse result units, and
   switch between light and dark themes from the application menu.
 - **Settings → Use system keyboard** lets you choose the phone keyboard or the
   calculator keypad. Your choice is saved; physical keyboards remain usable.
+- **Settings → Theme → E-ink** uses black text, white surfaces, outlined keys,
+  and reduced motion for e-readers.
 - Screen readers receive named expression, result, keypad, application, and
   window controls. See the [accessibility guide](docs/accessibility.md) for
   widget tests and real GTK4/AT-SPI validation.
 
 Clang is the preferred evaluator where available. Optional backends have their
 own syntax and platform requirements.
+See the [standard-library support tracker](docs/STANDARD_LIBRARY_SUPPORT.md)
+for current calculator helpers, missing libc/libc++ APIs, and verification status.
 
 ## Development
+
+For portable environments and isolated agent branches, start with the
+[task workspace guide](docs/TASK_WORKSPACES.md): one devcontainer configuration
+for local Docker, a remote server, or Codespaces.
 
 See the [development guide](docs/DEVELOPMENT.md) for local builds, tests,
 screenshots, and GitHub Pages deployment, or [Flatpak packaging](docs/FLATPAK.md)
 for Linux installation and packaging details.
+Keypad changes should follow the [calculator keypad design guide](docs/KEYPAD_DESIGN.md).
 
 ## Credits and license
 

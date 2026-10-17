@@ -11,11 +11,11 @@ dependencies:
     sdk: flutter
   dart_clang_constexpr:
     git:
-      url: https://github.com/richyo-codes/dart-clang-constexpr.git
+      url: https://github.com/richyo-codes/clang-constexpr.dart.git
       ref: 483cd8144573cc3b0975c285ad2e34013191dee6
   tinyexpr_plusplus_ffi:
     git:
-      url: https://github.com/richyo-codes/dart-tinyexpr-plusplus-ffi.git
+      url: https://github.com/richyo-codes/tinyexpr-plusplus-ffi.dart.git
       ref: dc249624c25226406b527a967144e5acf463d0e8
   meta: ^1.16.0
 

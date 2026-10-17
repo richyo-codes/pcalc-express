@@ -11,4 +11,4 @@ esac
 # Local preference only; no runner source files are copied or overwritten.
 printf 'set(LINUX_GTK_VARIANT "%s")\n' "$variant" > "$project_dir/linux/.gtk_variant.cmake"
 echo "Configured Linux runner for $variant."
-echo "Use tool/flutter_linux.sh to keep the Flutter engine and runner selection aligned."
+echo "Use tools/flutter_linux.sh to keep the Flutter engine and runner selection aligned."

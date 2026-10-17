@@ -22,7 +22,7 @@ class SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {
-  ThemeMode _themeMode = themeModeNotifier.value;
+  AppTheme _themeMode = themeModeNotifier.value;
   late bool _showCalcButtonsDesktop;
   bool _backendDebugLoggingEnabled = false;
   BackendKind? _backendPreference;
@@ -147,7 +147,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     }
   }
 
-  void _setThemeMode(ThemeMode mode) {
+  void _setThemeMode(AppTheme mode) {
     setState(() {
       _themeMode = mode;
       themeModeNotifier.value = mode;
@@ -165,11 +165,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final foregroundColor =
-        ThemeData.estimateBrightnessForColor(widget.themeColor) ==
-            Brightness.dark
-        ? Colors.white
-        : Colors.black;
+    final foregroundColor = Theme.of(context).colorScheme.onSurface;
     final backendInfo = selectedBackendInfo();
 
     return WillPopScope(
@@ -209,21 +205,30 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    RadioListTile<ThemeMode>(
+                    RadioListTile<AppTheme>(
                       title: const Text('System default'),
-                      value: ThemeMode.system,
+                      value: AppTheme.system,
                       groupValue: _themeMode,
                       onChanged: (value) => _setThemeMode(value!),
                     ),
-                    RadioListTile<ThemeMode>(
+                    RadioListTile<AppTheme>(
                       title: const Text('Light mode'),
-                      value: ThemeMode.light,
+                      value: AppTheme.light,
                       groupValue: _themeMode,
                       onChanged: (value) => _setThemeMode(value!),
                     ),
-                    RadioListTile<ThemeMode>(
+                    RadioListTile<AppTheme>(
                       title: const Text('Dark mode'),
-                      value: ThemeMode.dark,
+                      value: AppTheme.dark,
+                      groupValue: _themeMode,
+                      onChanged: (value) => _setThemeMode(value!),
+                    ),
+                    RadioListTile<AppTheme>(
+                      title: const Text('E-ink'),
+                      subtitle: const Text(
+                        'Black and white, outlined keys, reduced motion',
+                      ),
+                      value: AppTheme.eink,
                       groupValue: _themeMode,
                       onChanged: (value) => _setThemeMode(value!),
                     ),

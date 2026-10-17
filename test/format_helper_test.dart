@@ -2,6 +2,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pcalc_express/format_helper.dart';
 
 void main() {
+  test('float precision supports automatic and fixed formatting', () {
+    expect(formatFloatResult(1 / 3), '0.333333');
+    expect(formatFloatResult(1 / 3, decimalPlaces: 2), '0.33');
+    expect(formatFloatResult(1 / 3, decimalPlaces: 12), '0.333333333333');
+    expect(formatFloatResult(1e-9, decimalPlaces: null), '1e-9');
+    expect(formatFloatResult(2.75, decimalPlaces: 0), '3');
+  });
+
+  test('hex display groups from the right and prefixes once', () {
+    expect(
+      formatHexDisplay('AA BB CC DD', groupDigits: 4, showPrefix: true),
+      '0xAABB CCDD',
+    );
+    expect(formatHexDisplay('AA BB CC DD', groupDigits: 0), 'AABBCCDD');
+    expect(formatHexDisplay('AA BB CC DD', groupDigits: 8), 'AABBCCDD');
+    expect(formatHexDisplay('01 23 45', groupDigits: 4), '01 2345');
+    expect(formatHexDisplay('', showPrefix: true), '');
+  });
   group('formatHexResult', () {
     test('uses meaningful byte-aligned width for positive values', () {
       expect(formatHexResult(1, bitWidth: 64), '01');
