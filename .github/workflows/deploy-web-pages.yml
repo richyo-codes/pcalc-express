@@ -66,12 +66,14 @@ jobs:
         # focused on browser/Wasm startup.
         run: >-
           flutter test --platform chrome --wasm
+          test/calculator_android_layout_test.dart
           --plain-name "expression colors distinguish literals and operators"
 
       - name: Run keypad rendering checks
         continue-on-error: true
         run: >-
           flutter test --platform chrome --wasm
+          test/calculator_android_layout_test.dart
           --name "^renders .*keypad layout$"
 
       - name: Configure GitHub Pages

@@ -31,6 +31,17 @@ verify_engine_bundle() {
     exit 1
   fi
 
+  local dart_version snapshot_version
+  dart_version="$("$flutter_root/bin/cache/dart-sdk/bin/dart" --version 2>&1 |
+    sed -nE 's/^Dart (SDK|VM) version: ([^ ]+).*/\2/p')"
+  snapshot_version="$("$destination/gen_snapshot" --version 2>&1 |
+    sed -nE 's/^Dart (SDK|VM) version: ([^ ]+).*/\2/p')"
+  if [[ -z "$dart_version" || "$dart_version" != "$snapshot_version" ]]; then
+    echo "Published $build_mode gen_snapshot ($snapshot_version) does not match the Dart SDK ($dart_version)." >&2
+    echo "Republish the Dart SDK and engine archives from the same Dart revision." >&2
+    exit 1
+  fi
+
   if ! readelf -d "$destination/libflutter_linux_gtk.so" |
     grep -q 'Shared library: \[libgtk-3.so'; then
     echo "Published $build_mode GTK3 engine is not linked to GTK3" >&2

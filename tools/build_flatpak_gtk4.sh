@@ -29,6 +29,7 @@ test -x "$bundle_dir/pcalc_express"
 
 # Stage independently of the native package bundle. Resolve only libraries
 # missing from the runtime, including the evaluator's LLVM/Clang dependencies.
+mkdir -p "$root_dir/build/linux-gtk4"
 staging_dir="$(mktemp -d "$root_dir/build/linux-gtk4/flatpak-stage.XXXXXX")"
 trap 'rm -rf "$staging_dir"' EXIT
 mkdir -p "$staging_dir/bundle"
@@ -111,7 +112,7 @@ PY
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
 builder_args=(--disable-rofiles-fuse --force-clean)
-flatpak-builder "$flatpak_scope" "${builder_args[@]}" --repo="$output_dir/repo" \
+flatpak-builder "$flatpak_scope" "${builder_args[@]}" --state-dir="$output_dir/state" --repo="$output_dir/repo" \
   "$output_dir/build" "$staging_dir/manifest.yml"
 if ! flatpak build --runtime "$output_dir/build" sh -c '
   set -e

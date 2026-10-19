@@ -1,0 +1,26 @@
+name: Package release assets
+description: Preserve native bundle metadata and stage versioned release files
+inputs:
+  platform:
+    description: Build job platform
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    - name: Package assets
+      shell: bash
+      env:
+        RELEASE_PLATFORM: ${{ inputs.platform }}
+        RELEASE_TAG: ${{ github.ref_name }}
+      run: python tools/package_release.py "$RELEASE_PLATFORM" "$RELEASE_TAG" release-assets
+    - name: Stage release assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-assets-${{ inputs.platform }}
+        path: release-assets/*
+        if-no-files-found: error
+        retention-days: 7
+        compression-level: 0

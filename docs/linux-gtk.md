@@ -85,19 +85,32 @@ a registered `richyo-codes` fork, and a pinned SDK revision. It does not compile
 the Flutter engine or modify the repository's default `.fvmrc` outside the job.
 
 - Branch: `3.48.0-gtk4.issue94804.20260925`
-- Framework revision: `1e75e574e6a580fff095ebe83343276fd29df100`
-- Prebuilt engine ID: `409396163af31148a9f408ecd1db41acdb1e0e76`
+- Framework revision: `e95aed6a2a35bdcc2242d944e08267b78f9ea317`
+- Prebuilt engine ID: `e0462bb4b7f33fb7bf4c59ba2a73cfa1d0385ce1`
 
-This framework revision handles `SemanticsRole.slider` from the published
-engine. The earlier September 11 revision fails during Dart compilation with
-an incomplete semantics-role switch.
+This framework revision handles `SemanticsRole.slider`, `listBox`, and `option`
+from the published engine. Older framework pins fail during Dart compilation
+with an incomplete semantics-role switch.
 
 The job sets these before FVM installs or runs Flutter:
 
 ```sh
-export FLUTTER_PREBUILT_ENGINE_VERSION=409396163af31148a9f408ecd1db41acdb1e0e76
+export FLUTTER_PREBUILT_ENGINE_VERSION=e0462bb4b7f33fb7bf4c59ba2a73cfa1d0385ce1
 export FLUTTER_ENGINE_STORAGE_BASE_URL=https://pub-79a02b1963fb4da6b5e4e4816e8b7146.r2.dev
 ```
+
+The installer also checks that `gen_snapshot --version` matches the installed
+Dart SDK. The initial upload of engine
+`e0462bb4b7f33fb7bf4c59ba2a73cfa1d0385ce1` mixed SDK `3.15.0-27.0.dev`
+with snapshot generator `3.15.0-47.0.dev`, causing `ApiError` during AOT
+snapshot generation. Fresh downloads of the republished artifacts on
+2026-10-19 both report `3.15.0-47.0.dev`; compiling a Dart kernel with that
+SDK, generating an AOT snapshot with the release engine's `gen_snapshot`,
+and running it with the SDK's AOT runtime succeeded. This verifies the
+previous toolchain mismatch is fixed, rather than a full application build.
+
+Because the artifact ID was reused, an SDK cached from the initial upload
+must be refreshed too; downloading only the engine archives is insufficient.
 
 The installer downloads and validates the three standard Linux engine archives
 from R2 with [`tools/install_gtk4_prebuilt_engine.sh`](../tools/install_gtk4_prebuilt_engine.sh).

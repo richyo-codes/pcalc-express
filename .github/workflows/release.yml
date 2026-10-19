@@ -1,0 +1,61 @@
+name: Publish GitHub Release
+
+on:
+  workflow_call:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Download packaged release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Verify assets and generate checksums
+        shell: bash
+        working-directory: release-assets
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          prefix="pcalc-express-$RELEASE_TAG"
+          for suffix in android-universal.apk linux-x64-gtk3.tar.gz linux-x64-gtk4.tar.gz \
+            linux-x64-gtk3.deb linux-x64-gtk4.deb linux-x64-gtk3.rpm linux-x64-gtk4.rpm \
+            linux-x64-gtk3.flatpak linux-x64-gtk4.flatpak windows-x64.zip macos.tar.gz web-wasm.zip; do
+            test -s "$prefix-$suffix"
+          done
+          sha256sum ./pcalc-express-* > SHA256SUMS
+
+      - name: Publish release with generated notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Retry incomplete drafts, but never overwrite an already published release.
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
+            if ! jq -e '.isDraft' release.json >/dev/null; then
+              echo "Release $RELEASE_TAG is already published; leaving it unchanged."
+              exit 0
+            fi
+          else
+            options=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              options+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes \
+              --title "pcalc express $RELEASE_TAG" "${options[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false

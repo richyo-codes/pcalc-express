@@ -1,3 +1,7 @@
+// Reads fixture files and exercises the native evaluator.
+@TestOn('vm')
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

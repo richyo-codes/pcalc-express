@@ -88,7 +88,7 @@ fi
     sed -E 's@path: ../build/linux(-gtk4)?/x64/release/bundle@path: /bundle@; s@path: \\.\$@path: /src/flatpak@; s@path: ../assets/icons@path: /src/assets/icons@; s@path: ../LICENSE@path: /src/LICENSE@' \
       '$CONTAINER_MANIFEST' > /tmp/pcalc-manifest.yml
 
-    flatpak-builder --disable-rofiles-fuse --force-clean --repo='$CONTAINER_REPO_DIR' '$CONTAINER_BUILD_DIR' /tmp/pcalc-manifest.yml
+    flatpak-builder --disable-rofiles-fuse --force-clean --state-dir=/output/flatpak-state --repo='$CONTAINER_REPO_DIR' '$CONTAINER_BUILD_DIR' /tmp/pcalc-manifest.yml
     if [[ '$GTK_VARIANT' == gtk4 ]]; then
       flatpak build --runtime '$CONTAINER_BUILD_DIR' sh -c '
         set -e
